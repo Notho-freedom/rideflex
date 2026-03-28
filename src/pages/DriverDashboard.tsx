@@ -108,6 +108,10 @@ export function DriverDashboard({ navigate }: DriverDashboardProps) {
               </div>
             </RFCardContent>
           </RFCard>
+
+          <RFButton variant="outline" className="w-full" onClick={() => navigate('booking-requests')}>
+            Voir les demandes de réservation
+          </RFButton>
         </RFTabsContent>
       </RFTabs>
     </div>
