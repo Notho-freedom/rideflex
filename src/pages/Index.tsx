@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BottomNav } from '../components/rideflex/BottomNav';
+import { ResponsiveLayout } from '../components/rideflex/ResponsiveLayout';
 import { HomePage } from './HomePage';
 import { SearchPage } from './SearchPage';
 import { PublishPage } from './PublishPage';
@@ -50,13 +50,12 @@ const Index = () => {
     }
   };
 
-  const showBottomNav = ['home', 'search', 'publish', 'messages', 'profile'].includes(currentPage);
+  const showNav = ['home', 'search', 'publish', 'messages', 'profile'].includes(currentPage);
 
   return (
-    <div className="flex flex-col h-screen w-full bg-background overflow-hidden font-sans">
-      <main className="flex-1 overflow-y-auto relative">{renderPage()}</main>
-      {showBottomNav && <BottomNav currentPage={currentPage} navigate={navigate} />}
-    </div>
+    <ResponsiveLayout currentPage={currentPage} navigate={navigate} showNav={showNav}>
+      {renderPage()}
+    </ResponsiveLayout>
   );
 };
 

@@ -16,7 +16,7 @@ const tabs = [
 
 export function BottomNav({ currentPage, navigate }: BottomNavProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border pb-safe z-50">
+    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border pb-safe z-50 lg:hidden">
       <div className="flex justify-around items-center h-16">
         {tabs.map((tab) => {
           const Icon = tab.icon;
