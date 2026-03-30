@@ -11,15 +11,15 @@ interface PublishPageProps {
 
 export function PublishPage({ navigate }: PublishPageProps) {
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <div className="bg-card px-4 pt-12 pb-4 shadow-sm">
-        <div className="flex items-center mb-2">
+    <div className="min-h-screen bg-background pb-24 lg:pb-8">
+      <div className="bg-card px-4 pt-12 lg:pt-6 pb-4 shadow-sm">
+        <div className="flex items-center mb-2 max-w-xl lg:max-w-2xl mx-auto">
           <button onClick={() => navigate('home')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
           <h1 className="text-xl font-bold text-foreground ml-2">Publier un trajet</h1>
         </div>
       </div>
 
-      <div className="p-4 space-y-6">
+      <div className="p-4 space-y-6 max-w-xl lg:max-w-2xl mx-auto">
         <RFCard>
           <RFCardContent className="p-5 space-y-6">
             <div className="space-y-4">
