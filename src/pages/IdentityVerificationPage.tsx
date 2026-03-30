@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ArrowLeft, ShieldCheck, Upload, CheckCircle2, Clock, Camera, FileText } from 'lucide-react';
 import { RFButton } from '../components/rideflex/RFButton';
 import { RFCard, RFCardContent } from '../components/rideflex/RFCard';
@@ -24,16 +24,15 @@ const statusConfig = {
 
 export function IdentityVerificationPage({ navigate }: IdentityVerificationPageProps) {
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <div className="bg-card px-4 pt-12 pb-4 shadow-sm">
-        <div className="flex items-center mb-2">
+    <div className="min-h-screen bg-background pb-20 lg:pb-8">
+      <div className="bg-card px-4 pt-12 lg:pt-6 pb-4 shadow-sm">
+        <div className="flex items-center mb-2 max-w-2xl lg:max-w-3xl mx-auto">
           <button onClick={() => navigate('profile')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
           <h1 className="text-xl font-bold text-foreground ml-2">Vérification d'identité</h1>
         </div>
       </div>
 
-      <div className="p-4 space-y-6">
-        {/* Progress */}
+      <div className="p-4 space-y-6 max-w-2xl lg:max-w-3xl mx-auto">
         <RFCard className="border-brand-teal/30 bg-secondary/5">
           <RFCardContent className="p-5">
             <div className="flex items-center space-x-4 mb-3">
@@ -51,8 +50,7 @@ export function IdentityVerificationPage({ navigate }: IdentityVerificationPageP
           </RFCardContent>
         </RFCard>
 
-        {/* Steps */}
-        <div className="space-y-3">
+        <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
           {steps.map((step) => {
             const config = statusConfig[step.status];
             const StepIcon = step.icon;
@@ -69,11 +67,9 @@ export function IdentityVerificationPage({ navigate }: IdentityVerificationPageP
                       <p className="text-xs text-muted-foreground">{step.desc}</p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <RFBadge className={config.className}>
-                      <StatusIcon className="w-3 h-3 mr-1" />{config.label}
-                    </RFBadge>
-                  </div>
+                  <RFBadge className={config.className}>
+                    <StatusIcon className="w-3 h-3 mr-1" />{config.label}
+                  </RFBadge>
                 </RFCardContent>
               </RFCard>
             );
@@ -82,7 +78,6 @@ export function IdentityVerificationPage({ navigate }: IdentityVerificationPageP
 
         <RFSeparator />
 
-        {/* Upload section for pending */}
         <RFCard>
           <RFCardContent className="p-5 text-center space-y-4">
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
@@ -92,12 +87,14 @@ export function IdentityVerificationPage({ navigate }: IdentityVerificationPageP
               <h3 className="font-bold text-foreground mb-1">Ajouter votre permis de conduire</h3>
               <p className="text-sm text-muted-foreground">Prenez une photo claire de votre permis recto/verso</p>
             </div>
-            <RFButton variant="brand" className="w-full">
-              <Camera className="w-4 h-4 mr-2" />Prendre une photo
-            </RFButton>
-            <RFButton variant="outline" className="w-full">
-              <Upload className="w-4 h-4 mr-2" />Importer depuis la galerie
-            </RFButton>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <RFButton variant="brand" className="flex-1">
+                <Camera className="w-4 h-4 mr-2" />Prendre une photo
+              </RFButton>
+              <RFButton variant="outline" className="flex-1">
+                <Upload className="w-4 h-4 mr-2" />Importer depuis la galerie
+              </RFButton>
+            </div>
           </RFCardContent>
         </RFCard>
       </div>

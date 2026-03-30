@@ -25,27 +25,28 @@ export function RatingPage({ navigate }: RatingPageProps) {
   if (submitted) {
     return (
       <div className="min-h-screen bg-card flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-24 h-24 bg-secondary/10 rounded-full flex items-center justify-center mb-6">
-          <Star className="w-12 h-12 text-yellow-500 fill-current" />
+        <div className="max-w-md mx-auto">
+          <div className="w-24 h-24 bg-secondary/10 rounded-full flex items-center justify-center mb-6 mx-auto">
+            <Star className="w-12 h-12 text-yellow-500 fill-current" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground mb-2">Merci pour votre avis !</h1>
+          <p className="text-muted-foreground mb-8">Votre évaluation aide la communauté RideFlex.</p>
+          <RFButton variant="brand" size="xl" className="w-full" onClick={() => navigate('home')}>Retour à l'accueil</RFButton>
         </div>
-        <h1 className="text-2xl font-bold text-foreground mb-2">Merci pour votre avis !</h1>
-        <p className="text-muted-foreground mb-8">Votre évaluation aide la communauté RideFlex.</p>
-        <RFButton variant="brand" size="xl" className="w-full" onClick={() => navigate('home')}>Retour à l'accueil</RFButton>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <div className="bg-card px-4 pt-12 pb-4 shadow-sm">
-        <div className="flex items-center mb-2">
+      <div className="bg-card px-4 pt-12 lg:pt-6 pb-4 shadow-sm">
+        <div className="flex items-center mb-2 max-w-xl lg:max-w-2xl mx-auto">
           <button onClick={() => navigate('my-trips')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
           <h1 className="text-xl font-bold text-foreground ml-2">Évaluer le trajet</h1>
         </div>
       </div>
 
-      <div className="flex-1 p-4 space-y-6">
-        {/* Driver Info */}
+      <div className="flex-1 p-4 space-y-6 max-w-xl lg:max-w-2xl mx-auto w-full">
         <div className="flex flex-col items-center text-center pt-4">
           <RFAvatar className="w-20 h-20 border-2 border-card shadow-md mb-3">
             <RFAvatarImage src="https://i.pravatar.cc/150?u=3" />
@@ -55,7 +56,6 @@ export function RatingPage({ navigate }: RatingPageProps) {
           <p className="text-sm text-muted-foreground">Paris → Bordeaux • 15 Mars 2026</p>
         </div>
 
-        {/* Stars */}
         <RFCard>
           <RFCardContent className="p-6 text-center">
             <p className="text-sm font-medium text-muted-foreground mb-4">Comment s'est passé votre trajet ?</p>
@@ -68,9 +68,7 @@ export function RatingPage({ navigate }: RatingPageProps) {
                   onClick={() => setRating(star)}
                   className="p-1 transition-transform hover:scale-110"
                 >
-                  <Star
-                    className={`w-10 h-10 ${(hoveredStar || rating) >= star ? 'text-yellow-500 fill-current' : 'text-muted-foreground/30'}`}
-                  />
+                  <Star className={`w-10 h-10 ${(hoveredStar || rating) >= star ? 'text-yellow-500 fill-current' : 'text-muted-foreground/30'}`} />
                 </button>
               ))}
             </div>
@@ -84,7 +82,6 @@ export function RatingPage({ navigate }: RatingPageProps) {
           </RFCardContent>
         </RFCard>
 
-        {/* Tags */}
         {rating > 0 && (
           <RFCard>
             <RFCardContent className="p-5">
@@ -104,9 +101,7 @@ export function RatingPage({ navigate }: RatingPageProps) {
                   </button>
                 ))}
               </div>
-
               <RFSeparator className="my-4" />
-
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Commentaire (optionnel)</label>
                 <textarea
@@ -123,10 +118,12 @@ export function RatingPage({ navigate }: RatingPageProps) {
       </div>
 
       {rating > 0 && (
-        <div className="p-4 pb-safe bg-card border-t border-border">
-          <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={() => setSubmitted(true)}>
-            Envoyer mon avis
-          </RFButton>
+        <div className="p-4 pb-safe bg-card border-t border-border lg:border-0 lg:bg-transparent">
+          <div className="max-w-xl lg:max-w-2xl mx-auto">
+            <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={() => setSubmitted(true)}>
+              Envoyer mon avis
+            </RFButton>
+          </div>
         </div>
       )}
     </div>
