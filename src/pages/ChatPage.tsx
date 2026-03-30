@@ -22,8 +22,8 @@ export function ChatPage({ navigate }: ChatPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="bg-card px-4 pt-12 pb-4 shadow-sm flex items-center justify-between z-10">
+    <div className="min-h-screen bg-background flex flex-col max-w-3xl lg:max-w-4xl mx-auto">
+      <div className="bg-card px-4 pt-12 lg:pt-6 pb-4 shadow-sm flex items-center justify-between z-10">
         <div className="flex items-center">
           <button onClick={() => navigate('messages')} className="p-2 -ml-2 text-muted-foreground mr-2"><ArrowLeft className="w-6 h-6" /></button>
           <RFAvatar className="w-10 h-10 mr-3">
@@ -42,7 +42,7 @@ export function ChatPage({ navigate }: ChatPageProps) {
         <div className="text-center text-xs text-muted-foreground my-4">Aujourd'hui</div>
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${msg.sender === 'me' ? 'bg-gradient-brand text-primary-foreground rounded-tr-sm' : 'bg-card border border-border text-foreground rounded-tl-sm shadow-sm'}`}>
+            <div className={`max-w-[75%] lg:max-w-[60%] rounded-2xl px-4 py-2 ${msg.sender === 'me' ? 'bg-gradient-brand text-primary-foreground rounded-tr-sm' : 'bg-card border border-border text-foreground rounded-tl-sm shadow-sm'}`}>
               <p className="text-sm">{msg.text}</p>
               <p className={`text-[10px] mt-1 text-right ${msg.sender === 'me' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{msg.time}</p>
             </div>
