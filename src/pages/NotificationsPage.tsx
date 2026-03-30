@@ -14,14 +14,14 @@ const notifications = [
 export function NotificationsPage({ navigate }: NotificationsPageProps) {
   return (
     <div className="min-h-screen bg-card">
-      <div className="px-4 pt-12 pb-4 border-b border-border">
-        <div className="flex items-center">
+      <div className="px-4 pt-12 lg:pt-6 pb-4 border-b border-border">
+        <div className="flex items-center max-w-2xl lg:max-w-4xl mx-auto">
           <button onClick={() => navigate('home')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
           <h1 className="text-xl font-bold text-foreground ml-2">Notifications</h1>
         </div>
       </div>
 
-      <div className="divide-y divide-border">
+      <div className="max-w-2xl lg:max-w-4xl mx-auto divide-y divide-border">
         {notifications.map((notif) => {
           const Icon = notif.icon;
           return (

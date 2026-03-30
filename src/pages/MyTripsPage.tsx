@@ -71,32 +71,36 @@ function TripCard({ trip, navigate, showRate }: { trip: any; navigate: (page: st
 
 export function MyTripsPage({ navigate }: MyTripsPageProps) {
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <div className="bg-card px-4 pt-12 pb-4 shadow-sm">
-        <div className="flex items-center mb-2">
+    <div className="min-h-screen bg-background pb-20 lg:pb-8">
+      <div className="bg-card px-4 pt-12 lg:pt-6 pb-4 shadow-sm">
+        <div className="flex items-center mb-2 max-w-2xl lg:max-w-4xl mx-auto">
           <button onClick={() => navigate('profile')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
           <h1 className="text-xl font-bold text-foreground ml-2">Mes trajets</h1>
         </div>
       </div>
 
       <RFTabs defaultValue="upcoming" className="w-full mt-4">
-        <div className="px-4">
+        <div className="px-4 max-w-2xl lg:max-w-4xl mx-auto">
           <RFTabsList className="w-full grid grid-cols-2">
             <RFTabsTrigger value="upcoming">À venir</RFTabsTrigger>
             <RFTabsTrigger value="past">Historique</RFTabsTrigger>
           </RFTabsList>
         </div>
 
-        <RFTabsContent value="upcoming" className="p-4 space-y-4">
-          {upcomingTrips.map((trip) => (
-            <TripCard key={trip.id} trip={trip} navigate={navigate} />
-          ))}
+        <RFTabsContent value="upcoming" className="p-4">
+          <div className="max-w-2xl lg:max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {upcomingTrips.map((trip) => (
+              <TripCard key={trip.id} trip={trip} navigate={navigate} />
+            ))}
+          </div>
         </RFTabsContent>
 
-        <RFTabsContent value="past" className="p-4 space-y-4">
-          {pastTrips.map((trip) => (
-            <TripCard key={trip.id} trip={trip} navigate={navigate} showRate />
-          ))}
+        <RFTabsContent value="past" className="p-4">
+          <div className="max-w-2xl lg:max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {pastTrips.map((trip) => (
+              <TripCard key={trip.id} trip={trip} navigate={navigate} showRate />
+            ))}
+          </div>
         </RFTabsContent>
       </RFTabs>
     </div>

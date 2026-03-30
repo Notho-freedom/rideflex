@@ -101,16 +101,16 @@ export function BookingRequestsPage({ navigate }: BookingRequestsPageProps) {
   );
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <div className="bg-card px-4 pt-12 pb-4 shadow-sm">
-        <div className="flex items-center mb-2">
+    <div className="min-h-screen bg-background pb-20 lg:pb-8">
+      <div className="bg-card px-4 pt-12 lg:pt-6 pb-4 shadow-sm">
+        <div className="flex items-center mb-2 max-w-2xl lg:max-w-4xl mx-auto">
           <button onClick={() => navigate('driver-dashboard')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
           <h1 className="text-xl font-bold text-foreground ml-2">Demandes de réservation</h1>
         </div>
       </div>
 
       <RFTabs defaultValue="pending" className="w-full mt-4">
-        <div className="px-4">
+        <div className="px-4 max-w-2xl lg:max-w-4xl mx-auto">
           <RFTabsList className="w-full grid grid-cols-2">
             <RFTabsTrigger value="pending">En attente ({pending.length})</RFTabsTrigger>
             <RFTabsTrigger value="processed">Traitées ({processed.length})</RFTabsTrigger>
@@ -118,16 +118,20 @@ export function BookingRequestsPage({ navigate }: BookingRequestsPageProps) {
         </div>
 
         <RFTabsContent value="pending" className="p-4">
-          {pending.length === 0 ? (
-            <div className="text-center py-12">
-              <Clock className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground font-medium">Aucune demande en attente</p>
-            </div>
-          ) : pending.map(renderRequest)}
+          <div className="max-w-2xl lg:max-w-4xl mx-auto lg:grid lg:grid-cols-2 lg:gap-4">
+            {pending.length === 0 ? (
+              <div className="text-center py-12 lg:col-span-2">
+                <Clock className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-muted-foreground font-medium">Aucune demande en attente</p>
+              </div>
+            ) : pending.map(renderRequest)}
+          </div>
         </RFTabsContent>
 
         <RFTabsContent value="processed" className="p-4">
-          {processed.map(renderRequest)}
+          <div className="max-w-2xl lg:max-w-4xl mx-auto lg:grid lg:grid-cols-2 lg:gap-4">
+            {processed.map(renderRequest)}
+          </div>
         </RFTabsContent>
       </RFTabs>
     </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Mail, Lock, User } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, Car } from 'lucide-react';
 import { RFButton } from '../components/rideflex/RFButton';
 import { RFInput } from '../components/rideflex/RFInput';
 import { RFTabs, RFTabsList, RFTabsTrigger, RFTabsContent } from '../components/rideflex/RFTabs';
@@ -12,69 +12,88 @@ export function AuthPage({ navigate }: AuthPageProps) {
   const [role, setRole] = useState('passager');
 
   return (
-    <div className="min-h-screen bg-card flex flex-col">
-      <div className="px-4 pt-12 pb-4">
-        <button onClick={() => navigate('home')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
+    <div className="min-h-screen bg-card flex flex-col lg:flex-row">
+      {/* Desktop: left branding panel */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-brand items-center justify-center p-12">
+        <div className="text-center text-primary-foreground max-w-md">
+          <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-6">
+            <Car className="w-8 h-8" />
+          </div>
+          <h1 className="text-5xl font-bold mb-4">RideFlex</h1>
+          <p className="text-xl text-primary-foreground/90 mb-2">Le covoiturage réinventé</p>
+          <p className="text-primary-foreground/70">Rejoignez des milliers d'utilisateurs qui partagent leurs trajets chaque jour.</p>
+        </div>
       </div>
 
-      <div className="flex-1 px-6 flex flex-col justify-center pb-20">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gradient-brand mb-2">RideFlex</h1>
-          <p className="text-muted-foreground">Rejoignez la communauté du covoiturage</p>
+      {/* Form panel */}
+      <div className="flex-1 flex flex-col">
+        <div className="px-4 pt-12 lg:pt-6 pb-4 lg:hidden">
+          <button onClick={() => navigate('home')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
+        </div>
+        <div className="hidden lg:flex px-6 pt-6">
+          <button onClick={() => navigate('home')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
         </div>
 
-        <RFTabs defaultValue="login" className="w-full">
-          <RFTabsList className="grid w-full grid-cols-2 mb-8">
-            <RFTabsTrigger value="login">Connexion</RFTabsTrigger>
-            <RFTabsTrigger value="register">Inscription</RFTabsTrigger>
-          </RFTabsList>
+        <div className="flex-1 px-6 flex flex-col justify-center pb-20 lg:pb-8 max-w-md mx-auto w-full">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gradient-brand mb-2 lg:hidden">RideFlex</h1>
+            <h1 className="text-3xl font-bold text-foreground mb-2 hidden lg:block">Bienvenue</h1>
+            <p className="text-muted-foreground">Rejoignez la communauté du covoiturage</p>
+          </div>
 
-          <RFTabsContent value="login" className="space-y-4">
-            <div className="space-y-4">
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                <RFInput placeholder="Adresse email" type="email" className="pl-10 h-12" />
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                <RFInput placeholder="Mot de passe" type="password" className="pl-10 h-12" />
-              </div>
-            </div>
-            <div className="text-right">
-              <a href="#" className="text-sm text-brand-blue font-medium">Mot de passe oublié ?</a>
-            </div>
-            <RFButton variant="brand" size="xl" className="w-full mt-4" onClick={() => navigate('home')}>Se connecter</RFButton>
-          </RFTabsContent>
+          <RFTabs defaultValue="login" className="w-full">
+            <RFTabsList className="grid w-full grid-cols-2 mb-8">
+              <RFTabsTrigger value="login">Connexion</RFTabsTrigger>
+              <RFTabsTrigger value="register">Inscription</RFTabsTrigger>
+            </RFTabsList>
 
-          <RFTabsContent value="register" className="space-y-4">
-            <div className="space-y-4">
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                <RFInput placeholder="Nom complet" className="pl-10 h-12" />
+            <RFTabsContent value="login" className="space-y-4">
+              <div className="space-y-4">
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                  <RFInput placeholder="Adresse email" type="email" className="pl-10 h-12" />
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                  <RFInput placeholder="Mot de passe" type="password" className="pl-10 h-12" />
+                </div>
               </div>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                <RFInput placeholder="Adresse email" type="email" className="pl-10 h-12" />
+              <div className="text-right">
+                <a href="#" className="text-sm text-brand-blue font-medium">Mot de passe oublié ?</a>
               </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                <RFInput placeholder="Mot de passe" type="password" className="pl-10 h-12" />
-              </div>
-              <div className="pt-2">
-                <p className="text-sm font-medium text-foreground mb-3">Je souhaite utiliser RideFlex en tant que :</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className={`border rounded-xl p-3 text-center cursor-pointer transition-all ${role === 'passager' ? 'border-brand-blue bg-primary/10 text-brand-blue' : 'border-border text-muted-foreground'}`} onClick={() => setRole('passager')}>
-                    <span className="font-semibold text-sm">Passager</span>
-                  </div>
-                  <div className={`border rounded-xl p-3 text-center cursor-pointer transition-all ${role === 'chauffeur' ? 'border-brand-teal bg-secondary/10 text-brand-teal' : 'border-border text-muted-foreground'}`} onClick={() => setRole('chauffeur')}>
-                    <span className="font-semibold text-sm">Chauffeur</span>
+              <RFButton variant="brand" size="xl" className="w-full mt-4" onClick={() => navigate('home')}>Se connecter</RFButton>
+            </RFTabsContent>
+
+            <RFTabsContent value="register" className="space-y-4">
+              <div className="space-y-4">
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                  <RFInput placeholder="Nom complet" className="pl-10 h-12" />
+                </div>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                  <RFInput placeholder="Adresse email" type="email" className="pl-10 h-12" />
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                  <RFInput placeholder="Mot de passe" type="password" className="pl-10 h-12" />
+                </div>
+                <div className="pt-2">
+                  <p className="text-sm font-medium text-foreground mb-3">Je souhaite utiliser RideFlex en tant que :</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={`border rounded-xl p-3 text-center cursor-pointer transition-all ${role === 'passager' ? 'border-brand-blue bg-primary/10 text-brand-blue' : 'border-border text-muted-foreground'}`} onClick={() => setRole('passager')}>
+                      <span className="font-semibold text-sm">Passager</span>
+                    </div>
+                    <div className={`border rounded-xl p-3 text-center cursor-pointer transition-all ${role === 'chauffeur' ? 'border-brand-teal bg-secondary/10 text-brand-teal' : 'border-border text-muted-foreground'}`} onClick={() => setRole('chauffeur')}>
+                      <span className="font-semibold text-sm">Chauffeur</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <RFButton variant="brand" size="xl" className="w-full mt-6" onClick={() => navigate('home')}>Créer un compte</RFButton>
-          </RFTabsContent>
-        </RFTabs>
+              <RFButton variant="brand" size="xl" className="w-full mt-6" onClick={() => navigate('home')}>Créer un compte</RFButton>
+            </RFTabsContent>
+          </RFTabs>
+        </div>
       </div>
     </div>
   );
