@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Mail, Lock, User, Car } from 'lucide-react';
+import React from 'react';
+import { ArrowLeft, Mail, Lock, User, Car, Star } from 'lucide-react';
 import { RFButton } from '../components/rideflex/RFButton';
 import { RFInput } from '../components/rideflex/RFInput';
 import { RFTabs, RFTabsList, RFTabsTrigger, RFTabsContent } from '../components/rideflex/RFTabs';
@@ -9,26 +9,58 @@ interface AuthPageProps {
 }
 
 export function AuthPage({ navigate }: AuthPageProps) {
-  const [role, setRole] = useState('passager');
-
   return (
     <div className="min-h-screen bg-card flex flex-col lg:flex-row">
       {/* Desktop: left branding panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-brand items-center justify-center p-12">
-        <div className="text-center text-primary-foreground max-w-md">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-brand items-center justify-center p-12 relative overflow-hidden">
+        {/* Decorative circles */}
+        <div className="absolute top-20 -left-16 w-64 h-64 rounded-full bg-white/5" />
+        <div className="absolute bottom-20 -right-20 w-80 h-80 rounded-full bg-white/5" />
+        <div className="absolute top-1/3 right-20 w-32 h-32 rounded-full bg-white/5" />
+
+        <div className="text-center text-primary-foreground max-w-md relative z-10">
           <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-6">
             <Car className="w-8 h-8" />
           </div>
           <h1 className="text-5xl font-bold mb-4">RideFlex</h1>
           <p className="text-xl text-primary-foreground/90 mb-2">Le covoiturage réinventé</p>
-          <p className="text-primary-foreground/70">Rejoignez des milliers d'utilisateurs qui partagent leurs trajets chaque jour.</p>
+          <p className="text-primary-foreground/70 mb-8">Rejoignez des milliers d'utilisateurs qui partagent leurs trajets chaque jour.</p>
+
+          {/* Rating badge */}
+          <div className="inline-flex items-center bg-white/15 backdrop-blur-sm rounded-full px-5 py-2.5 mb-6">
+            <div className="flex mr-2">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Star key={s} className={`w-4 h-4 ${s <= 4 ? 'text-yellow-400 fill-current' : 'text-yellow-400/50 fill-current'}`} />
+              ))}
+            </div>
+            <span className="text-sm font-semibold">4.8/5</span>
+            <span className="text-xs text-primary-foreground/70 ml-1">• 12k+ avis</span>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-4 mt-6">
+            <div className="bg-white/10 rounded-xl p-3">
+              <p className="text-2xl font-bold">50k+</p>
+              <p className="text-xs text-primary-foreground/70">Utilisateurs</p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-3">
+              <p className="text-2xl font-bold">120k+</p>
+              <p className="text-xs text-primary-foreground/70">Trajets</p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-3">
+              <p className="text-2xl font-bold">35+</p>
+              <p className="text-xs text-primary-foreground/70">Villes</p>
+            </div>
+          </div>
+
+          <p className="text-primary-foreground/40 text-xs mt-10">© 2026 RideFlex. Tous droits réservés.</p>
         </div>
       </div>
 
       {/* Form panel */}
       <div className="flex-1 flex flex-col">
         <div className="px-4 pt-12 lg:pt-6 pb-4 lg:hidden">
-          <button onClick={() => navigate('home')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
+          <button onClick={() => navigate('onboarding')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
         </div>
         <div className="hidden lg:flex px-6 pt-6">
           <button onClick={() => navigate('home')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
@@ -78,18 +110,10 @@ export function AuthPage({ navigate }: AuthPageProps) {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
                   <RFInput placeholder="Mot de passe" type="password" className="pl-10 h-12" />
                 </div>
-                <div className="pt-2">
-                  <p className="text-sm font-medium text-foreground mb-3">Je souhaite utiliser RideFlex en tant que :</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className={`border rounded-xl p-3 text-center cursor-pointer transition-all ${role === 'passager' ? 'border-brand-blue bg-primary/10 text-brand-blue' : 'border-border text-muted-foreground'}`} onClick={() => setRole('passager')}>
-                      <span className="font-semibold text-sm">Passager</span>
-                    </div>
-                    <div className={`border rounded-xl p-3 text-center cursor-pointer transition-all ${role === 'chauffeur' ? 'border-brand-teal bg-secondary/10 text-brand-teal' : 'border-border text-muted-foreground'}`} onClick={() => setRole('chauffeur')}>
-                      <span className="font-semibold text-sm">Chauffeur</span>
-                    </div>
-                  </div>
-                </div>
               </div>
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                En créant un compte, vous êtes à la fois passager et chauffeur.
+              </p>
               <RFButton variant="brand" size="xl" className="w-full mt-6" onClick={() => navigate('home')}>Créer un compte</RFButton>
             </RFTabsContent>
           </RFTabs>
