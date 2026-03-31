@@ -1,9 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
-import type { Database } from '../types/database';
 
-type Booking = Database['public']['Tables']['bookings']['Row'];
+export interface Booking {
+  id: string;
+  trip_id: string;
+  passenger_id: string;
+  status: string;
+  seats: number;
+  message: string | null;
+  created_at: string;
+}
 
 export function useBookings() {
   const { user } = useAuth();
@@ -18,7 +25,7 @@ export function useBookings() {
       .select('*')
       .eq('passenger_id', user.id)
       .order('created_at', { ascending: false });
-    setBookings(data || []);
+    setBookings((data as Booking[]) || []);
     setLoading(false);
   };
 
@@ -28,23 +35,23 @@ export function useBookings() {
       .select('*')
       .eq('trip_id', tripId)
       .order('created_at', { ascending: false });
-    return data || [];
+    return (data as Booking[]) || [];
   };
 
   const createBooking = async (tripId: string, seats: number = 1, message?: string) => {
     if (!user) return { error: 'Not authenticated' };
     const { data, error } = await supabase
       .from('bookings')
-      .insert({ trip_id: tripId, passenger_id: user.id, seats, message })
+      .insert({ trip_id: tripId, passenger_id: user.id, seats, message } as any)
       .select()
       .single();
-    return { data, error };
+    return { data: data as Booking | null, error };
   };
 
-  const updateBookingStatus = async (bookingId: string, status: 'accepted' | 'rejected' | 'cancelled') => {
+  const updateBookingStatus = async (bookingId: string, status: string) => {
     const { error } = await supabase
       .from('bookings')
-      .update({ status })
+      .update({ status } as any)
       .eq('id', bookingId);
     return { error };
   };

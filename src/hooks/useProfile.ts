@@ -1,9 +1,22 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
-import type { Database } from '../types/database';
 
-type Profile = Database['public']['Tables']['profiles']['Row'];
+export interface Profile {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  phone: string | null;
+  bio: string | null;
+  is_driver: boolean;
+  vehicle_brand: string | null;
+  vehicle_model: string | null;
+  vehicle_color: string | null;
+  license_plate: string | null;
+  rating_avg: number;
+  total_trips: number;
+  created_at: string;
+}
 
 export function useProfile() {
   const { user } = useAuth();
@@ -19,7 +32,7 @@ export function useProfile() {
         .select('*')
         .eq('id', user.id)
         .single();
-      setProfile(data);
+      setProfile(data as Profile | null);
       setLoading(false);
     };
 
@@ -30,7 +43,7 @@ export function useProfile() {
     if (!user) return { error: 'Not authenticated' };
     const { error } = await supabase
       .from('profiles')
-      .update(updates)
+      .update(updates as any)
       .eq('id', user.id);
     if (!error) {
       setProfile(prev => prev ? { ...prev, ...updates } : null);

@@ -1,13 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
-import type { Database } from '../types/database';
 
-type Message = Database['public']['Tables']['messages']['Row'];
+export interface ChatMessage {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  trip_id: string | null;
+  content: string;
+  read_at: string | null;
+  created_at: string;
+}
 
 export function useMessages(otherUserId?: string) {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchMessages = useCallback(async () => {
@@ -18,14 +25,12 @@ export function useMessages(otherUserId?: string) {
       .select('*')
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
       .order('created_at', { ascending: true });
-    setMessages(data || []);
+    setMessages((data as ChatMessage[]) || []);
     setLoading(false);
   }, [user, otherUserId]);
 
-  // Realtime subscription
   useEffect(() => {
     if (!user || !otherUserId) return;
-
     fetchMessages();
 
     const channel = supabase
@@ -35,7 +40,7 @@ export function useMessages(otherUserId?: string) {
         schema: 'public',
         table: 'messages',
       }, (payload) => {
-        const newMsg = payload.new as Message;
+        const newMsg = payload.new as ChatMessage;
         if (
           (newMsg.sender_id === user.id && newMsg.receiver_id === otherUserId) ||
           (newMsg.sender_id === otherUserId && newMsg.receiver_id === user.id)
@@ -52,10 +57,10 @@ export function useMessages(otherUserId?: string) {
     if (!user || !otherUserId) return { error: 'Missing user or receiver' };
     const { data, error } = await supabase
       .from('messages')
-      .insert({ sender_id: user.id, receiver_id: otherUserId, content, trip_id: tripId })
+      .insert({ sender_id: user.id, receiver_id: otherUserId, content, trip_id: tripId } as any)
       .select()
       .single();
-    return { data, error };
+    return { data: data as ChatMessage | null, error };
   };
 
   return { messages, loading, sendMessage, fetchMessages };
