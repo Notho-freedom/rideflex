@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
-import type { Database } from '../integrations/supabase/types';
+import type { Database } from '../types/database';
 
 type Trip = Database['public']['Tables']['trips']['Row'];
 type TripInsert = Database['public']['Tables']['trips']['Insert'];
