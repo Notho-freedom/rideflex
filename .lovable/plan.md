@@ -1,119 +1,147 @@
 
 
-# Plan de développement RideFlex — Responsive + Backend + Notifications
+# Plan — Corrections design + Backend Supabase (reprise)
 
-## Résumé des demandes
+## Contexte
 
-1. **Adaptation responsive** : Transformer le design mobile-first en layout adaptatif pour desktop (sidebar + contenu centré), tablette (contenu centré plus large), et mobile (inchangé)
-2. **Backend Supabase** : Auth, profils, trajets, réservations, messages, notifications
-3. **Notifications push** : Service Worker + notifications in-app temps réel via Supabase Realtime
+L'utilisateur a déjà connecté son propre projet Supabase avec toutes les clés dans `.env`. Il ne faut pas créer de nouveau projet — utiliser directement les variables existantes (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, etc.). Le responsive (Phase 1) est fait, mais il reste des problèmes de sidebar manquante sur les sous-pages et plusieurs améliorations UX demandées.
 
 ---
 
-## Phase 1 — Adaptation responsive (prioritaire)
+## Bloc A — Corrections design & UX (prioritaire)
 
-### Stratégie de layout
+### A1. Sidebar visible sur toutes les pages (desktop/tablette)
 
-```text
-Mobile (<768px)          Tablette (768-1024px)      Desktop (>1024px)
-┌──────────────┐         ┌───────────────────┐      ┌──────┬────────────────┐
-│   Content    │         │    Content         │      │ Side │    Content     │
-│   Full width │         │    max-w-2xl       │      │ Nav  │  max-w-4xl     │
-│              │         │    centered        │      │      │  centered      │
-├──────────────┤         ├───────────────────┤      │      │               │
-│  BottomNav   │         │    BottomNav       │      │      │               │
-└──────────────┘         └───────────────────┘      └──────┴────────────────┘
-```
+**Problème** : `showNav` dans `Index.tsx` ne s'active que pour 5 pages principales. Toutes les sous-pages (settings, driver-dashboard, trip-detail, etc.) n'ont pas de sidebar.
 
-### Fichiers modifiés
+**Solution** : Modifier la logique `showNav` — afficher la nav sur toutes les pages SAUF `auth`, `onboarding`, `booking-confirmation`, `rating`, `chat`. Les pages comme settings, driver-dashboard, my-trips, etc. garderont la sidebar.
 
-1. **`src/components/rideflex/SideNav.tsx`** (nouveau) — Navigation latérale desktop avec les mêmes onglets que BottomNav, affichée uniquement sur `lg:` et plus
-2. **`src/components/rideflex/BottomNav.tsx`** — Masquer sur `lg:` (`lg:hidden`)
-3. **`src/components/rideflex/ResponsiveLayout.tsx`** (nouveau) — Wrapper qui gère le layout : sidebar à gauche sur desktop, contenu centré avec `max-w` adaptatif
-4. **`src/pages/Index.tsx`** — Utiliser ResponsiveLayout au lieu du layout brut actuel
-5. **Toutes les pages** (~15 fichiers) — Ajouter des classes responsive :
-   - `max-w-2xl md:max-w-3xl lg:max-w-4xl mx-auto` pour centrer le contenu
-   - Grids adaptatifs : `grid-cols-2 lg:grid-cols-3` pour les actions rapides
-   - `HomePage` : Hero et search card adaptés, trajets en grid sur desktop
-   - `SearchPage` : Liste en 2 colonnes sur desktop
-   - `MessagesPage` / `ChatPage` : Layout split-view sur desktop (liste + chat côte à côte)
-   - `ProfilePage`, `SettingsPage`, etc. : Contenu centré avec max-width
-   - `PublishPage`, `EditProfilePage` : Formulaires centrés, max-w-xl sur desktop
-   - Padding `pt-12` → `pt-6 lg:pt-8` (plus de safe area sur desktop)
+### A2. Auth page — Supprimer le choix passager/chauffeur
+
+Retirer le sélecteur de rôle à l'inscription. Tout le monde est passager ET chauffeur par défaut. Ajouter des décorations au panel gauche desktop : note de rating fictive, copyright "© 2026 RideFlex", et des éléments visuels SVG (voiture, route stylisée).
+
+### A3. Onboarding (3 écrans)
+
+Créer `OnboardingPage.tsx` avec 3 slides swipables :
+1. "Trouvez votre trajet" — illustration SVG de recherche, texte descriptif
+2. "Publiez et partagez" — illustration SVG voiture/partage
+3. "Voyagez en confiance" — illustration SVG vérification/sécurité
+
+Bouton "Commencer" à la fin → redirige vers Auth. L'onboarding s'affiche en premier si l'utilisateur n'est pas authentifié.
+
+### A4. Notifications — Panel latéral sur desktop/tablette
+
+Au lieu d'ouvrir une page pleine, utiliser un `Sheet` (composant existant) qui glisse depuis la droite. Chaque notification est cliquable et redirige vers l'élément concerné (réservation, chat, trajet). Sur mobile, garder la page actuelle.
+
+### A5. Actions rapides — Corrections
+
+- Remplacer "Notifications" par "Mes réservations" (avec icône `ClipboardList`)
+- Changer l'icône de "Mode Dispo" : remplacer `Search` par `Radio` (icône antenne)
+- Ajouter un bouton d'options (3 points) sur les cartes de trajets récents
+
+### A6. Search card sur homepage — Équilibrer le layout
+
+Mettre le bouton "Rechercher" sur la même ligne que les inputs sur desktop (grid 4 colonnes au lieu de 3 + bouton en dessous). Sur mobile, garder le bouton pleine largeur.
+
+### A7. Location overlay pour inputs de lieu
+
+Créer un composant `LocationPicker` réutilisable (utilisé sur homepage et search page) :
+- Quand on clique sur un input lieu → overlay/popover avec :
+  - "Ma position" (icône GPS)
+  - Historique des saisies récentes (stocké en localStorage)
+  - Input de saisie libre
+- Validation : départ ≠ arrivée
+- "Ma position" disponible pour départ ET arrivée
+
+### A8. Search page — Refonte complète
+
+- Remplacer l'en-tête statique "Paris → Lyon" par de vrais inputs de recherche
+- 3 modes de recherche via segment control : "Par départ", "Par arrivée", "Par trajet"
+  - Par départ/arrivée : un seul input
+  - Par trajet : deux inputs (réutilise LocationPicker)
+- Retirer le switch Liste/Carte (pas de carte ici)
+- Ajouter un filtre "Chauffeur disponible maintenant" dans les filtres
+
+### A9. Publish page — Arrêts intermédiaires + carte interactive
+
+- Ajouter bouton "+ Ajouter un arrêt" entre départ et arrivée (dynamique, plusieurs arrêts)
+- Intégrer Mapbox (clé déjà dans `.env`) pour afficher une carte interactive qui trace l'itinéraire départ → arrêts → arrivée en temps réel
+- Schéma de sièges du véhicule (layout standard 5 places : conducteur grisé + 4 sélectionnables)
+
+### A10. Driver Dashboard — Mode dispo avec carte
+
+- Retirer l'onglet "Mes Trajets" (déplacé vers actions rapides "Mes réservations")
+- Avant activation : carte fictive stylisée (dégradé bleu/brume, illustration SVG, bouton "Activer")
+- Après activation : carte Mapbox réelle avec position GPS, marqueur, cercle de rayon
+- Panel de configuration à côté/en dessous de la carte avec le slider de rayon qui ajuste le cercle en temps réel
+
+### A11. Chat page — Appel externe + WhatsApp + localisation
+
+- Bouton appel → `window.open('tel:...')` (appel externe)
+- Ajouter bouton WhatsApp conditionnel → `window.open('https://wa.me/...')`
+- Ajouter bouton partage de localisation dans la barre d'input → envoie un message avec lien Mapbox/Google Maps
+
+### A12. Trip detail page — Carte du trajet + arrêts + suggestion d'arrêt
+
+- Intégrer carte Mapbox montrant l'itinéraire (départ → arrêts → arrivée) tracé
+- Afficher les arrêts intermédiaires sur la timeline
+- Bouton "Suggérer un arrêt" pour le passager
 
 ---
 
-## Phase 2 — Backend Supabase
+## Bloc B — Backend Supabase (après design)
 
-### Activation Lovable Cloud
+### B1. Client Supabase
 
-Activer Supabase via Lovable Cloud pour obtenir auth + database.
+Créer `src/integrations/supabase/client.ts` utilisant `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` depuis `.env` (préfixe `VITE_` pour Vite). Ajouter les variables préfixées dans `.env`.
 
-### Schéma de base de données (migrations)
+### B2. Migrations SQL
 
-**Table `profiles`** — Données utilisateur
-- `id` (uuid, FK auth.users), `full_name`, `avatar_url`, `phone`, `bio`, `is_driver`, `vehicle_brand`, `vehicle_model`, `vehicle_color`, `license_plate`, `rating_avg`, `total_trips`, `created_at`
+Créer les migrations pour les tables : `profiles`, `user_roles`, `trips` (avec colonne `stops` jsonb), `bookings`, `messages`, `notifications`, `ratings`, `push_subscriptions`. Toutes avec RLS + fonction `has_role()`.
 
-**Table `user_roles`** — Rôles (admin, user, driver)
-- `id`, `user_id` (FK auth.users), `role` (enum)
+### B3. Auth
 
-**Table `trips`** — Trajets publiés
-- `id`, `driver_id` (FK profiles), `from_city`, `from_address`, `to_city`, `to_address`, `departure_date`, `departure_time`, `price`, `seats_total`, `seats_available`, `status` (active/completed/cancelled), `created_at`
+- `AuthContext` + `useAuth` hook
+- Brancher `AuthPage` sur `supabase.auth.signUp` / `signInWithPassword`
+- Trigger auto-création profil à l'inscription
+- Protection des routes (redirection vers auth/onboarding si non connecté)
+- Mot de passe oublié + page `/reset-password`
 
-**Table `bookings`** — Réservations
-- `id`, `trip_id` (FK trips), `passenger_id` (FK profiles), `status` (pending/accepted/rejected/cancelled), `created_at`
+### B4. Hooks data
 
-**Table `messages`** — Messages de chat
-- `id`, `sender_id`, `receiver_id`, `trip_id` (nullable), `content`, `read_at`, `created_at`
+- `useProfile` : lecture/écriture profil
+- `useTrips` : CRUD trajets + recherche avec filtres
+- `useBookings` : créer/accepter/refuser réservations
+- `useMessages` : envoyer/recevoir + Supabase Realtime
+- `useNotifications` : in-app + Realtime subscription
 
-**Table `notifications`** — Notifications in-app
-- `id`, `user_id`, `title`, `body`, `type` (booking/message/trip/system), `data` (jsonb), `read`, `created_at`
+### B5. Notifications push
 
-**Table `ratings`** — Avis
-- `id`, `trip_id`, `from_user_id`, `to_user_id`, `score` (1-5), `tags` (text[]), `comment`, `created_at`
-
-**RLS** sur toutes les tables + fonction `has_role()` security definer.
-
-### Intégration frontend
-
-- **AuthContext** : Provider global avec `onAuthStateChange`, protéger les routes
-- **AuthPage** : Brancher `signUp` / `signInWithPassword`
-- **ProfilePage** : Lecture/écriture profil depuis Supabase
-- **PublishPage** : Insert dans `trips`
-- **SearchPage** : Query `trips` avec filtres
-- **BookingConfirmation** : Insert dans `bookings`
-- **MessagesPage/ChatPage** : Query/insert `messages` + Supabase Realtime pour temps réel
-- **NotificationsPage** : Query `notifications` + Realtime subscription
-- **RatingPage** : Insert dans `ratings`, mise à jour `rating_avg` du profil
-- **Custom hooks** : `useAuth`, `useTrips`, `useMessages`, `useNotifications`, `useProfile`
-
----
-
-## Phase 3 — Notifications push navigateur
-
-### Architecture
-
-1. **Service Worker** (`public/sw.js`) pour recevoir les push events
-2. **Edge Function `send-push-notification`** : Envoie via Web Push API quand un événement survient (nouvelle réservation, nouveau message, etc.)
-3. **Table `push_subscriptions`** : Stocke les subscriptions des utilisateurs (endpoint, keys)
-4. **Composant de demande de permission** : À afficher après login pour demander l'autorisation de notifications
-5. **Triggers Supabase** : Database webhooks ou triggers pour déclencher l'envoi de push quand un insert arrive dans `bookings`, `messages`, etc.
-
-### Secrets nécessaires
-
-- VAPID public/private keys (générées et stockées via Lovable secrets)
+- Service Worker `public/sw.js`
+- Table `push_subscriptions`
+- Edge Function `send-push-notification` (Web Push API)
+- Demande de permission après login
+- Triggers sur insert dans `bookings`/`messages`
 
 ---
 
 ## Ordre d'exécution
 
-1. Créer `SideNav` + `ResponsiveLayout` → modifier `Index.tsx` + `BottomNav`
-2. Adapter chaque page avec classes responsive (par lots)
-3. Activer Lovable Cloud / Supabase
-4. Créer les migrations (tables + RLS)
-5. Créer `AuthContext` + `useAuth` + brancher `AuthPage`
-6. Créer les hooks data (`useTrips`, `useProfile`, etc.) + brancher les pages
-7. Messages temps réel avec Realtime
-8. Notifications in-app avec Realtime
-9. Push notifications (Service Worker + Edge Function)
+1. A1 (sidebar sur sous-pages) + A2 (auth cleanup) + A3 (onboarding)
+2. A4 (notifications panel) + A5 (actions rapides) + A6 (search card balance)
+3. A7 (LocationPicker) + A8 (search page refonte)
+4. A9 (publish + carte) + A10 (driver dashboard + carte)
+5. A11 (chat) + A12 (trip detail carte)
+6. B1-B2 (Supabase client + migrations)
+7. B3 (auth)
+8. B4 (hooks data)
+9. B5 (push notifications)
+
+### Section technique
+
+- Mapbox GL JS sera utilisé via le token dans `.env` (`MAPBOX_ACCESS_TOKEN`) — exposé côté client via `VITE_MAPBOX_ACCESS_TOKEN`
+- Les variables `.env` pour le client doivent être préfixées `VITE_` pour être accessibles dans Vite
+- Le composant `Sheet` existant (`src/components/ui/sheet.tsx`) sera utilisé pour le panel de notifications
+- Le `LocationPicker` utilisera un `Popover` existant comme base
+- Les illustrations SVG seront des composants inline React (pas de fichiers externes)
 
