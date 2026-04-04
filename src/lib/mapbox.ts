@@ -3,7 +3,7 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '';
 export interface RouteResult {
   duration: number; // seconds
   distance: number; // meters
-  geometry: GeoJSON.LineString;
+  geometry: { type: 'LineString'; coordinates: [number, number][] };
 }
 
 export interface GeocodingResult {
