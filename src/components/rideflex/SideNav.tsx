@@ -1,5 +1,6 @@
 import React from 'react';
-import { Home, Search, PlusCircle, MessageCircle, User, Car } from 'lucide-react';
+import { Home, Search, PlusCircle, MessageCircle, User } from 'lucide-react';
+import logoImg from '../../assets/logo.png';
 
 interface SideNavProps {
   currentPage: string;
@@ -20,9 +21,7 @@ export function SideNav({ currentPage, navigate }: SideNavProps) {
       {/* Logo */}
       <div className="px-6 py-6 border-b border-border">
         <div className="flex items-center space-x-2">
-          <div className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center">
-            <Car className="w-5 h-5 text-primary-foreground" />
-          </div>
+          <img src={logoImg} alt="RideFlex" className="w-9 h-9 rounded-xl object-contain" />
           <h1 className="text-xl font-bold text-gradient-brand">RideFlex</h1>
         </div>
       </div>
@@ -52,7 +51,7 @@ export function SideNav({ currentPage, navigate }: SideNavProps) {
 
       {/* Footer */}
       <div className="px-4 py-4 border-t border-border">
-        <p className="text-xs text-muted-foreground text-center">RideFlex v1.0.0</p>
+        <p className="text-xs text-muted-foreground text-center">© 2026 RideFlex v1.0.0</p>
       </div>
     </aside>
   );

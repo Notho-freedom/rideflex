@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowLeft, MapPin, Calendar, Clock, Users, Euro, Plus, X } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Clock, Users, Euro, Plus, X, Briefcase, PawPrint, RotateCcw, Repeat } from 'lucide-react';
 import { RFButton } from '../components/rideflex/RFButton';
 import { RFCard, RFCardContent } from '../components/rideflex/RFCard';
 import { RFInput } from '../components/rideflex/RFInput';
 import { RFSeparator } from '../components/rideflex/RFSeparator';
+import { RFSwitch } from '../components/rideflex/RFSwitch';
 
 interface PublishPageProps {
   navigate: (page: string) => void;
@@ -13,6 +14,12 @@ export function PublishPage({ navigate }: PublishPageProps) {
   const [stops, setStops] = useState<string[]>([]);
   const [seats, setSeats] = useState(3);
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
+  const [acceptsLuggage, setAcceptsLuggage] = useState(true);
+  const [acceptsAnimals, setAcceptsAnimals] = useState(false);
+  const [isRoundTrip, setIsRoundTrip] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [selectedDays, setSelectedDays] = useState<number[]>([]);
 
   const addStop = () => setStops([...stops, '']);
   const removeStop = (index: number) => setStops(stops.filter((_, i) => i !== index));
@@ -25,6 +32,12 @@ export function PublishPage({ navigate }: PublishPageProps) {
   const toggleSeat = (seat: number) => {
     setSelectedSeats(prev => prev.includes(seat) ? prev.filter(s => s !== seat) : [...prev, seat]);
   };
+
+  const toggleDay = (day: number) => {
+    setSelectedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  };
+
+  const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
   return (
     <div className="min-h-screen bg-background pb-24 lg:pb-8">
@@ -91,6 +104,69 @@ export function PublishPage({ navigate }: PublishPageProps) {
                     <RFInput type="time" className="text-muted-foreground" />
                   </div>
                 </div>
+
+                {/* Round trip toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <RotateCcw className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-sm text-foreground">Aller-retour</span>
+                  </div>
+                  <RFSwitch checked={isRoundTrip} onCheckedChange={setIsRoundTrip} />
+                </div>
+
+                {isRoundTrip && (
+                  <div className="pl-8 space-y-3 border-l-2 border-dashed border-brand-teal/30">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase">Retour</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center space-x-3">
+                        <Calendar className="text-muted-foreground w-4 h-4 shrink-0" />
+                        <RFInput type="date" className="text-muted-foreground" />
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <Clock className="text-muted-foreground w-4 h-4 shrink-0" />
+                        <RFInput type="time" className="text-muted-foreground" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Recurrence toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Repeat className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-sm text-foreground">Trajet régulier</span>
+                  </div>
+                  <RFSwitch checked={isRecurring} onCheckedChange={setIsRecurring} />
+                </div>
+
+                {isRecurring && (
+                  <div className="pl-8 space-y-3 border-l-2 border-dashed border-brand-blue/30">
+                    <div className="flex bg-muted rounded-lg p-1">
+                      {(['daily', 'weekly', 'monthly'] as const).map(t => (
+                        <button
+                          key={t}
+                          onClick={() => setRecurrenceType(t)}
+                          className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${recurrenceType === t ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+                        >
+                          {t === 'daily' ? 'Quotidien' : t === 'weekly' ? 'Hebdo' : 'Mensuel'}
+                        </button>
+                      ))}
+                    </div>
+                    {recurrenceType === 'weekly' && (
+                      <div className="flex gap-2 flex-wrap">
+                        {days.map((d, i) => (
+                          <button
+                            key={i}
+                            onClick={() => toggleDay(i)}
+                            className={`w-10 h-10 rounded-lg text-xs font-semibold transition-all ${selectedDays.includes(i) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                          >
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <RFSeparator />
@@ -115,6 +191,22 @@ export function PublishPage({ navigate }: PublishPageProps) {
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">€</span>
                   </div>
                 </div>
+
+                {/* Luggage & Animals */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Briefcase className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-sm text-foreground">Bagages acceptés</span>
+                  </div>
+                  <RFSwitch checked={acceptsLuggage} onCheckedChange={setAcceptsLuggage} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <PawPrint className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-sm text-foreground">Animaux acceptés</span>
+                  </div>
+                  <RFSwitch checked={acceptsAnimals} onCheckedChange={setAcceptsAnimals} />
+                </div>
               </div>
             </RFCardContent>
           </RFCard>
@@ -129,7 +221,7 @@ export function PublishPage({ navigate }: PublishPageProps) {
                   <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center text-muted-foreground/50 border-2 border-muted cursor-not-allowed">
                     <Users className="w-5 h-5" />
                   </div>
-                  <div className="w-14 h-14" /> {/* gap */}
+                  <div className="w-14 h-14" />
                   <button
                     onClick={() => toggleSeat(1)}
                     className={`w-14 h-14 rounded-xl flex items-center justify-center border-2 transition-all ${selectedSeats.includes(1) ? 'bg-primary/10 border-brand-blue text-brand-blue' : 'bg-card border-border text-muted-foreground hover:border-brand-blue/50'}`}

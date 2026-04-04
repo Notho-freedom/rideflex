@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Filter, MapPin, Radio } from 'lucide-react';
+import { ArrowLeft, Filter, MapPin, Radio, Briefcase, PawPrint, HandHelping } from 'lucide-react';
 import { RFCard, RFCardContent } from '../components/rideflex/RFCard';
 import { RFInput } from '../components/rideflex/RFInput';
 import { RFAvatar, RFAvatarImage, RFAvatarFallback } from '../components/rideflex/RFAvatar';
 import { RFBadge } from '../components/rideflex/RFBadge';
+import { RFButton } from '../components/rideflex/RFButton';
 
 interface SearchPageProps {
   navigate: (page: string, data?: any) => void;
@@ -12,9 +13,9 @@ interface SearchPageProps {
 type SearchMode = 'departure' | 'arrival' | 'trip';
 
 const trips = [
-  { id: 1, driver: 'Sophie M.', rating: 4.9, from: 'Paris', to: 'Lyon', time: '14:30', price: 25, seats: 2, type: 'planned' },
-  { id: 2, driver: 'Marc D.', rating: 4.7, from: 'Paris (Sud)', to: 'Lyon (Centre)', time: '16:00', price: 20, seats: 3, type: 'planned' },
-  { id: 3, driver: 'Julie L.', rating: 5.0, from: 'Paris', to: 'Lyon', time: 'Immédiat', price: 35, seats: 1, type: 'available' },
+  { id: 1, driver: 'Sophie M.', rating: 4.9, from: 'Paris', to: 'Lyon', time: '14:30', price: 25, seats: 2, type: 'planned', luggage: true, animals: false },
+  { id: 2, driver: 'Marc D.', rating: 4.7, from: 'Paris (Sud)', to: 'Lyon (Centre)', time: '16:00', price: 20, seats: 3, type: 'planned', luggage: true, animals: true },
+  { id: 3, driver: 'Julie L.', rating: 5.0, from: 'Paris', to: 'Lyon', time: 'Immédiat', price: 35, seats: 1, type: 'available', luggage: false, animals: false },
 ];
 
 const modeLabels: Record<SearchMode, string> = {
@@ -26,8 +27,16 @@ const modeLabels: Record<SearchMode, string> = {
 export function SearchPage({ navigate }: SearchPageProps) {
   const [mode, setMode] = useState<SearchMode>('trip');
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
+  const [filterLuggage, setFilterLuggage] = useState(false);
+  const [filterAnimals, setFilterAnimals] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
-  const filteredTrips = showAvailableOnly ? trips.filter(t => t.type === 'available') : trips;
+  const filteredTrips = trips.filter(t => {
+    if (showAvailableOnly && t.type !== 'available') return false;
+    if (filterLuggage && !t.luggage) return false;
+    if (filterAnimals && !t.animals) return false;
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-background flex flex-col pb-20 lg:pb-8">
@@ -37,7 +46,7 @@ export function SearchPage({ navigate }: SearchPageProps) {
           <div className="flex items-center justify-between mb-4">
             <button onClick={() => navigate('home')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
             <h1 className="text-lg font-bold text-foreground">Recherche</h1>
-            <button className="p-2 -mr-2 text-muted-foreground"><Filter className="w-5 h-5" /></button>
+            <button onClick={() => setShowFilters(!showFilters)} className="p-2 -mr-2 text-muted-foreground"><Filter className="w-5 h-5" /></button>
           </div>
 
           {/* Search mode tabs */}
@@ -69,16 +78,39 @@ export function SearchPage({ navigate }: SearchPageProps) {
             )}
           </div>
 
-          {/* Available now filter */}
-          <button
-            onClick={() => setShowAvailableOnly(!showAvailableOnly)}
-            className={`mt-3 flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-              showAvailableOnly ? 'bg-secondary/15 text-brand-teal border border-brand-teal/30' : 'bg-muted text-muted-foreground'
-            }`}
-          >
-            <Radio className="w-4 h-4" />
-            Chauffeur disponible maintenant
-          </button>
+          {/* Filters */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowAvailableOnly(!showAvailableOnly)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                showAvailableOnly ? 'bg-secondary/15 text-brand-teal border border-brand-teal/30' : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              <Radio className="w-4 h-4" />Dispo maintenant
+            </button>
+            <button
+              onClick={() => setFilterLuggage(!filterLuggage)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                filterLuggage ? 'bg-primary/10 text-brand-blue border border-brand-blue/30' : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              <Briefcase className="w-4 h-4" />Bagages
+            </button>
+            <button
+              onClick={() => setFilterAnimals(!filterAnimals)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                filterAnimals ? 'bg-primary/10 text-brand-blue border border-brand-blue/30' : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              <PawPrint className="w-4 h-4" />Animaux
+            </button>
+            <button
+              onClick={() => navigate('trip-requests')}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-muted text-muted-foreground hover:bg-muted/80 transition-all"
+            >
+              <HandHelping className="w-4 h-4" />Demandes passagers
+            </button>
+          </div>
         </div>
       </div>
 
@@ -115,13 +147,24 @@ export function SearchPage({ navigate }: SearchPageProps) {
                       <p className="text-xs text-muted-foreground">{trip.to}</p>
                     </div>
                   </div>
-                  {trip.type === 'available' && (
-                    <div className="mt-4 pt-3 border-t border-border">
+                  {/* Tags */}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {trip.type === 'available' && (
                       <RFBadge variant="secondary" className="bg-secondary/10 text-brand-teal">
-                        <Radio className="w-3 h-3 mr-1" />Disponible maintenant
+                        <Radio className="w-3 h-3 mr-1" />Dispo
                       </RFBadge>
-                    </div>
-                  )}
+                    )}
+                    {trip.luggage && (
+                      <RFBadge variant="outline" className="text-muted-foreground">
+                        <Briefcase className="w-3 h-3 mr-1" />Bagages
+                      </RFBadge>
+                    )}
+                    {trip.animals && (
+                      <RFBadge variant="outline" className="text-muted-foreground">
+                        <PawPrint className="w-3 h-3 mr-1" />Animaux
+                      </RFBadge>
+                    )}
+                  </div>
                 </RFCardContent>
               </RFCard>
             ))}
