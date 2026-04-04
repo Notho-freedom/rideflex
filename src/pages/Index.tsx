@@ -20,6 +20,8 @@ import { PaymentMethodsPage } from './PaymentMethodsPage';
 import { IdentityVerificationPage } from './IdentityVerificationPage';
 import { BookingRequestsPage } from './BookingRequestsPage';
 import { NotificationsSheet } from '../components/rideflex/NotificationsSheet';
+import { PublishRequestPage } from './PublishRequestPage';
+import { TripRequestsPage } from './TripRequestsPage';
 
 const Index = () => {
   const [currentPage, setCurrentPage] = useState('home');
@@ -27,7 +29,6 @@ const Index = () => {
 
   const navigate = (page: string, data?: any) => {
     if (page === 'notifications') {
-      // On desktop/tablet: open sheet. On mobile: navigate to page.
       if (window.innerWidth >= 768) {
         setNotificationsOpen(true);
         return;
@@ -57,11 +58,12 @@ const Index = () => {
       case 'payment-methods': return <PaymentMethodsPage navigate={navigate} />;
       case 'identity-verification': return <IdentityVerificationPage navigate={navigate} />;
       case 'booking-requests': return <BookingRequestsPage navigate={navigate} />;
+      case 'publish-request': return <PublishRequestPage navigate={navigate} />;
+      case 'trip-requests': return <TripRequestsPage navigate={navigate} />;
       default: return <HomePage navigate={navigate} />;
     }
   };
 
-  // Pages without nav: auth, onboarding, booking-confirmation (confirmed state), rating (submitted state)
   const noNavPages = ['auth', 'onboarding'];
   const showNav = !noNavPages.includes(currentPage);
 

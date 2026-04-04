@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { ArrowLeft, MapPin, ShieldCheck, MessageCircle, Star, Info, Plus } from 'lucide-react';
+import { ArrowLeft, MapPin, ShieldCheck, MessageCircle, Star, Info, Plus, Briefcase, PawPrint, Lock, Clock } from 'lucide-react';
 import { RFButton } from '../components/rideflex/RFButton';
 import { RFCard, RFCardContent } from '../components/rideflex/RFCard';
 import { RFAvatar, RFAvatarImage, RFAvatarFallback } from '../components/rideflex/RFAvatar';
 import { RFSeparator } from '../components/rideflex/RFSeparator';
 import { RFInput } from '../components/rideflex/RFInput';
+import { RFBadge } from '../components/rideflex/RFBadge';
 
 interface TripDetailPageProps {
   navigate: (page: string, data?: any) => void;
@@ -12,12 +13,17 @@ interface TripDetailPageProps {
 
 export function TripDetailPage({ navigate }: TripDetailPageProps) {
   const [showSuggestStop, setShowSuggestStop] = useState(false);
+  const [bookPrivate, setBookPrivate] = useState(false);
 
   const stops = [
     { time: '14:30', place: 'Paris', detail: 'Gare de Lyon, Hall 1', type: 'departure' },
     { time: '15:45', place: 'Fontainebleau', detail: 'Centre-ville', type: 'stop' },
     { time: '18:00', place: 'Lyon', detail: 'Gare Part-Dieu', type: 'arrival' },
   ];
+
+  const tripFeatures = { luggage: true, animals: false, estimatedArrival: '18:00' };
+  const pricePerSeat = 25;
+  const totalSeats = 4;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -35,7 +41,13 @@ export function TripDetailPage({ navigate }: TripDetailPageProps) {
           <div>
             {/* Timeline with stops */}
             <div className="bg-card p-6 mb-2 lg:rounded-xl lg:shadow-sm lg:mb-4">
-              <h2 className="text-xl font-bold text-foreground mb-6">Aujourd'hui</h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-foreground">Aujourd'hui</h2>
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Clock className="w-4 h-4" />
+                  <span>Arrivée estimée : <strong className="text-foreground">{tripFeatures.estimatedArrival}</strong></span>
+                </div>
+              </div>
               <div className="relative pl-6 border-l-2 border-border space-y-6 ml-2">
                 {stops.map((stop, i) => (
                   <div key={i} className="relative">
@@ -77,9 +89,41 @@ export function TripDetailPage({ navigate }: TripDetailPageProps) {
               )}
             </div>
 
-            <div className="bg-card p-4 mb-2 flex justify-between items-center lg:rounded-xl lg:shadow-sm lg:mb-4">
-              <span className="text-muted-foreground font-medium">Prix total pour 1 passager</span>
-              <span className="text-2xl font-bold text-brand-blue">25,00 €</span>
+            {/* Features */}
+            <div className="bg-card p-4 mb-2 lg:rounded-xl lg:shadow-sm lg:mb-4">
+              <div className="flex flex-wrap gap-2">
+                {tripFeatures.luggage && (
+                  <RFBadge variant="outline"><Briefcase className="w-3.5 h-3.5 mr-1" />Bagages acceptés</RFBadge>
+                )}
+                {tripFeatures.animals && (
+                  <RFBadge variant="outline"><PawPrint className="w-3.5 h-3.5 mr-1" />Animaux acceptés</RFBadge>
+                )}
+                {!tripFeatures.animals && (
+                  <RFBadge variant="outline" className="text-muted-foreground/60"><PawPrint className="w-3.5 h-3.5 mr-1" />Pas d'animaux</RFBadge>
+                )}
+              </div>
+            </div>
+
+            {/* Price + private option */}
+            <div className="bg-card p-4 mb-2 lg:rounded-xl lg:shadow-sm lg:mb-4 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground font-medium">Prix pour 1 place</span>
+                <span className="text-2xl font-bold text-brand-blue">{pricePerSeat},00 €</span>
+              </div>
+              <RFSeparator />
+              <button
+                onClick={() => setBookPrivate(!bookPrivate)}
+                className={`w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all ${bookPrivate ? 'border-primary bg-primary/5' : 'border-border'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <Lock className={`w-5 h-5 ${bookPrivate ? 'text-brand-blue' : 'text-muted-foreground'}`} />
+                  <div className="text-left">
+                    <p className="text-sm font-semibold text-foreground">Réserver en privé</p>
+                    <p className="text-xs text-muted-foreground">Toute la voiture pour vous</p>
+                  </div>
+                </div>
+                <span className="font-bold text-foreground">{pricePerSeat * totalSeats},00 €</span>
+              </button>
             </div>
 
             {/* Map placeholder */}
@@ -123,14 +167,18 @@ export function TripDetailPage({ navigate }: TripDetailPageProps) {
             </div>
 
             <div className="hidden lg:block mt-4">
-              <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={() => navigate('booking-confirmation')}>Continuer</RFButton>
+              <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={() => navigate('booking-confirmation')}>
+                {bookPrivate ? `Réserver en privé — ${pricePerSeat * totalSeats}€` : 'Continuer'}
+              </RFButton>
             </div>
           </div>
         </div>
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 pb-safe z-50 lg:hidden">
-        <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={() => navigate('booking-confirmation')}>Continuer</RFButton>
+        <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={() => navigate('booking-confirmation')}>
+          {bookPrivate ? `Réserver en privé — ${pricePerSeat * totalSeats}€` : 'Continuer'}
+        </RFButton>
       </div>
     </div>
   );

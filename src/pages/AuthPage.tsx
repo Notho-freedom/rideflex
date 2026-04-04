@@ -1,8 +1,9 @@
 import React from 'react';
-import { ArrowLeft, Mail, Lock, User, Car, Star } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, Star } from 'lucide-react';
 import { RFButton } from '../components/rideflex/RFButton';
 import { RFInput } from '../components/rideflex/RFInput';
 import { RFTabs, RFTabsList, RFTabsTrigger, RFTabsContent } from '../components/rideflex/RFTabs';
+import logoImg from '../assets/logo.png';
 
 interface AuthPageProps {
   navigate: (page: string) => void;
@@ -13,15 +14,20 @@ export function AuthPage({ navigate }: AuthPageProps) {
     <div className="min-h-screen bg-card flex flex-col lg:flex-row">
       {/* Desktop: left branding panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-brand items-center justify-center p-12 relative overflow-hidden">
-        {/* Decorative circles */}
         <div className="absolute top-20 -left-16 w-64 h-64 rounded-full bg-white/5" />
         <div className="absolute bottom-20 -right-20 w-80 h-80 rounded-full bg-white/5" />
         <div className="absolute top-1/3 right-20 w-32 h-32 rounded-full bg-white/5" />
 
+        {/* Decorative SVG road */}
+        <svg className="absolute bottom-0 left-0 right-0 w-full h-32 opacity-10" viewBox="0 0 800 120" preserveAspectRatio="none">
+          <path d="M0 80 Q200 40 400 80 Q600 120 800 60 L800 120 L0 120Z" fill="white" />
+          <line x1="100" y1="90" x2="250" y2="70" stroke="white" strokeWidth="3" strokeDasharray="15 10" opacity="0.5" />
+          <line x1="400" y1="80" x2="550" y2="90" stroke="white" strokeWidth="3" strokeDasharray="15 10" opacity="0.5" />
+          <line x1="650" y1="75" x2="750" y2="65" stroke="white" strokeWidth="3" strokeDasharray="15 10" opacity="0.5" />
+        </svg>
+
         <div className="text-center text-primary-foreground max-w-md relative z-10">
-          <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-6">
-            <Car className="w-8 h-8" />
-          </div>
+          <img src={logoImg} alt="RideFlex" className="w-20 h-20 mx-auto mb-6 rounded-2xl" />
           <h1 className="text-5xl font-bold mb-4">RideFlex</h1>
           <p className="text-xl text-primary-foreground/90 mb-2">Le covoiturage réinventé</p>
           <p className="text-primary-foreground/70 mb-8">Rejoignez des milliers d'utilisateurs qui partagent leurs trajets chaque jour.</p>
