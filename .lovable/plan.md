@@ -1,155 +1,116 @@
 
 
-# Plan — Nouvelles fonctionnalites RideFlex (document de conception)
+# Plan — Rééquilibrage des interfaces + Mode Passager/Chauffeur + Carte Mapbox 3D
 
-Ce document de conception detaille les evolutions majeures issues de votre cahier des charges. L'objectif est d'enrichir RideFlex avec les fonctionnalites manquantes : demandes de trajet par les passagers, calcul automatique d'arrivee, trajets reguliers, option prive, combinaisons intelligentes, gestion bagages/animaux, et monetisation par commission.
+## Résumé
 
----
-
-## Nouvelles fonctionnalites a implementer
-
-### 1. Demandes de trajet (passager publie une demande)
-
-Nouveau concept : en plus des trajets publies par les chauffeurs, un passager peut publier une **demande de trajet** ("Je cherche un trajet Montreal -> Ottawa le 15 avril").
-
-**Fichiers concernes :**
-- Nouveau `src/pages/PublishRequestPage.tsx` — formulaire similaire a PublishPage mais pour passagers (depart, arrivee, date, heure souhaitee, prix propose, nombre de places)
-- Nouveau `src/pages/TripRequestsPage.tsx` — liste des demandes de passagers visibles par les chauffeurs
-- Mise a jour `database.ts` — nouvelle table `trip_requests` (publisher_id, from_city, to_city, desired_date, desired_time, proposed_price, seats_needed, accepts_luggage, accepts_animals, status)
-- Mise a jour `HomePage.tsx` — nouvelle action rapide "Publier une demande"
-- Mise a jour `SearchPage.tsx` — onglet/filtre pour voir les demandes de passagers (cote chauffeur)
-
-### 2. Calcul automatique de l'heure d'arrivee
-
-Utiliser l'API Mapbox Directions pour calculer la duree du trajet quand le chauffeur publie.
-
-**Fichiers concernes :**
-- `PublishPage.tsx` — apres saisie depart + arrivee + heure depart, appeler Mapbox Directions API et afficher l'heure d'arrivee estimee automatiquement
-- Nouveau `src/lib/mapbox.ts` — fonctions utilitaires : `getRoute(from, to, stops[])` retourne duree + distance + geometrie
-- `TripDetailPage.tsx` — afficher l'heure d'arrivee estimee
-
-### 3. Option aller-retour
-
-**Fichiers concernes :**
-- `PublishPage.tsx` — ajouter un toggle "Aller-retour" ; si active, afficher les champs retour (date retour, heure retour) ; a la publication, creer 2 trajets (aller + retour inverse)
-- `database.ts` — ajouter champ optionnel `return_trip_id` sur `trips` pour lier aller et retour
-
-### 4. Trajets reguliers / recurrents
-
-Permettre a un chauffeur de marquer un trajet comme "regulier" (tous les jours, tous les lundis, etc.).
-
-**Fichiers concernes :**
-- `PublishPage.tsx` — section "Recurrence" avec options (quotidien, hebdomadaire + jours, mensuel)
-- `database.ts` — ajouter `is_recurring`, `recurrence_pattern` (jsonb) sur `trips`
-- Nouveau hook `useRecurringTrips.ts` — logique de generation des occurrences
-
-### 5. Option trajet prive (passager reserve toute la voiture)
-
-**Fichiers concernes :**
-- `TripDetailPage.tsx` / `BookingConfirmation.tsx` — option "Reserver en prive" (reserver toutes les places)
-- `BookingRequestsPage.tsx` — badge "Prive" sur la reservation
-- Prix calcule = prix_par_place x nombre_total_places
-
-### 6. Gestion bagages et animaux
-
-**Fichiers concernes :**
-- `PublishPage.tsx` — toggles "Bagages acceptes" et "Animaux acceptes"
-- `database.ts` — ajouter `accepts_luggage`, `accepts_animals` (boolean) sur `trips`
-- `SearchPage.tsx` — filtres bagages/animaux
-- `TripDetailPage.tsx` — afficher les icones bagages/animaux
-
-### 7. Combinaisons intelligentes de trajets
-
-Algorithme qui propose au chauffeur de combiner des trajets compatibles (ex. Montreal -> Cornwall + Cornwall -> Ottawa).
-
-**Fichiers concernes :**
-- Nouveau `src/lib/tripCombinator.ts` — algorithme :
-  1. Trouver les trajets dont le depart est proche de la destination du trajet courant
-  2. Filtrer par direction (meme sens general), horaire compatible (arrivee trajet 1 < depart trajet 2)
-  3. Limiter les detours a 20 min max (via Mapbox Directions)
-- `DriverDashboard.tsx` ou nouveau `src/pages/TripCombinationsPage.tsx` — afficher les combinaisons suggerees
-- `TripDetailPage.tsx` — section "Trajets combinables" pour le chauffeur
-
-### 8. Profil enrichi — creation progressive
-
-Au lieu de demander toutes les infos au signup, demander le profil complet uniquement au premier usage significatif (publier un trajet, contacter un chauffeur).
-
-**Fichiers concernes :**
-- Nouveau `src/components/rideflex/ProfileCompletionModal.tsx` — modal qui demande les infos manquantes (nom, photo, telephone, vehicule si chauffeur)
-- `PublishPage.tsx`, `ChatPage.tsx` — verifier si profil complet avant d'agir, sinon afficher le modal
-
-### 9. Commission sur paiements (monetisation)
-
-**Fichiers concernes :**
-- Mise a jour `database.ts` — ajouter `platform_fee`, `driver_payout` sur `bookings`
-- Logique Stripe : lors du paiement, appliquer une commission (ex. 10%) et transferer le reste au chauffeur via Stripe Connect
-- Nouveau Edge Function pour le paiement avec commission
-
-### 10. Logo et branding
-
-Copier l'icone de covoiturage fournie dans le projet et l'utiliser comme logo.
-
-**Fichiers concernes :**
-- Copier `icone-covoiturage-voiture-passagers_116137-1451-removebg-preview.png` dans `src/assets/logo.png`
-- Copier le `.ico` dans `public/favicon.ico`
-- Mettre a jour `SideNav.tsx`, `OnboardingPage.tsx`, `AuthPage.tsx`, `index.html`
+3 axes de travail :
+1. **Rééquilibrage des layouts** sur les pages déséquilibrées (TripDetail, Publish, etc.)
+2. **Système de rôle Passager/Chauffeur** avec switch et adaptation des vues
+3. **Carte Mapbox 3D** sur la page de recherche avec filtres par rayon et marqueurs
 
 ---
 
-## Migrations SQL a ajouter
+## 1. Rééquilibrage des layouts
 
-```text
--- Nouvelles colonnes sur trips
-ALTER TABLE trips ADD COLUMN accepts_luggage boolean DEFAULT true;
-ALTER TABLE trips ADD COLUMN accepts_animals boolean DEFAULT false;
-ALTER TABLE trips ADD COLUMN is_recurring boolean DEFAULT false;
-ALTER TABLE trips ADD COLUMN recurrence_pattern jsonb;
-ALTER TABLE trips ADD COLUMN return_trip_id uuid REFERENCES trips(id);
-ALTER TABLE trips ADD COLUMN estimated_arrival_time text;
-ALTER TABLE trips ADD COLUMN from_lat double precision;
-ALTER TABLE trips ADD COLUMN from_lng double precision;
-ALTER TABLE trips ADD COLUMN to_lat double precision;
-ALTER TABLE trips ADD COLUMN to_lng double precision;
+### TripDetailPage
+- Déplacer les cartes "Bagages/Animaux" et "Prix + réservation privée" de la colonne gauche vers la colonne droite (sous le profil chauffeur)
+- Étaler la carte Mapbox du trajet sur les 2 colonnes (`lg:col-span-2`) en dessous
 
--- Nouvelle table trip_requests
-CREATE TABLE trip_requests (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  publisher_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  from_city text NOT NULL,
-  to_city text NOT NULL,
-  desired_date date NOT NULL,
-  desired_time text,
-  proposed_price numeric,
-  seats_needed integer DEFAULT 1,
-  accepts_luggage boolean DEFAULT true,
-  accepts_animals boolean DEFAULT false,
-  is_private boolean DEFAULT false,
-  status text DEFAULT 'active',
-  created_at timestamptz DEFAULT now()
-);
+### PublishPage
+- Déplacer la carte interactive en dessous du formulaire, pleine largeur (`lg:col-span-2`), avant le bouton Publier
+- Séparer le formulaire en 2 colonnes sur desktop : colonne 1 = Itinéraire + Date/Heure, colonne 2 = Détails + Sièges
 
--- Commission fields on bookings
-ALTER TABLE bookings ADD COLUMN total_price numeric;
-ALTER TABLE bookings ADD COLUMN platform_fee numeric;
-ALTER TABLE bookings ADD COLUMN driver_payout numeric;
-
--- Profiles: WhatsApp + preferences
-ALTER TABLE profiles ADD COLUMN whatsapp_number text;
-ALTER TABLE profiles ADD COLUMN show_whatsapp boolean DEFAULT false;
-```
+### Autres pages
+- Vérifier et appliquer le même principe d'équilibre sur DriverDashboard (déjà en 2 colonnes, OK)
 
 ---
 
-## Ordre d'implementation
+## 2. Système Passager / Chauffeur
 
-1. **Logo & branding** — copier images, mettre a jour favicon et composants
-2. **Schema enrichi** — mettre a jour `database.ts` avec tous les nouveaux champs
-3. **PublishPage** — aller-retour, recurrence, bagages/animaux, calcul auto arrivee
-4. **PublishRequestPage** — nouvelle page pour les demandes passagers
-5. **SearchPage** — filtres bagages/animaux/prive, onglet demandes passagers
-6. **TripDetailPage** — option prive, affichage bagages/animaux, heure arrivee
-7. **ProfileCompletionModal** — creation progressive du profil
-8. **TripCombinator** — algorithme de combinaison + UI
-9. **Monetisation** — commission Stripe sur bookings
-10. **Migrations SQL** — a executer sur le projet Supabase
+### Concept
+- Par défaut, tout le monde est passager après inscription
+- Un switch permet de basculer en mode chauffeur à tout moment
+- Le mode sélectionné est stocké en state global (React context) et persisté en `localStorage`
+- L'interface s'adapte selon le mode actif
+
+### Fichiers concernés
+
+**Nouveau : `src/contexts/UserModeContext.tsx`**
+- Context React avec `mode: 'passenger' | 'driver'` et `toggleMode()`
+- Persistance localStorage
+
+**AuthPage** — Après inscription, ajouter un écran de sélection du mode initial (passager par défaut, option chauffeur)
+
+**HomePage — Actions rapides adaptatives**
+- Mode **passager** (bleu) : "Publier une demande", "Mes trajets", "Chauffeurs dispo"
+- Mode **chauffeur** (vert/teal) : "Publier un trajet", "Mode Dispo", "Mes réservations"
+- Code couleur : bleu = passager, vert/teal = chauffeur
+
+**SideNav + BottomNav** — Ajouter indicateur de mode actif dans la sidebar (pastille colorée ou badge)
+
+**ProfilePage** — Ajouter un switch Passager/Chauffeur visible (ou dans la popover avatar du header)
+
+**SearchPage** — En mode passager : cherche des chauffeurs. En mode chauffeur : peut aussi voir les demandes passagers.
+
+---
+
+## 3. Carte Mapbox 3D sur la page de recherche
+
+### Architecture
+
+**Nouveau view mode sur SearchPage** : `list` | `map`
+- Ajouter un filtre-pill "Carte" dans les filtres rapides existants
+- Quand activé, remplace la liste par une carte Mapbox GL JS pleine largeur
+
+**Carte Mapbox GL JS** :
+- Style 3D avec bâtiments : `mapbox://styles/mapbox/streets-v12` + `pitch: 60`, `bearing: -17.6`
+- Utiliser `map.addLayer({ type: 'fill-extrusion', source: 'composite', 'source-layer': 'building' })` pour les bâtiments 3D
+- Géolocalisation utilisateur via `navigator.geolocation` → centrer la carte
+
+**Filtres rayon** :
+- Quand mode carte activé, afficher un slider ou des pills prédéfinis (5km, 10km, 15km, 25km, 50km)
+- Dessiner un cercle (`turf.circle` ou polygone GeoJSON) autour de la position utilisateur
+- Filtrer dynamiquement les résultats dans le rayon
+
+**Marqueurs** :
+- Chaque chauffeur = marqueur personnalisé sur la carte (icône + prix)
+- Au clic sur un marqueur → popup card avec infos du chauffeur (nom, rating, prix, destination)
+- Au clic sur la card → naviguer vers `trip-detail`
+
+### Installation
+- `npm install mapbox-gl @types/mapbox-gl` (Mapbox GL JS)
+- Token déjà disponible : `VITE_MAPBOX_ACCESS_TOKEN`
+
+### Composant
+**Nouveau : `src/components/rideflex/MapboxSearch.tsx`**
+- Composant React encapsulant le canvas Mapbox
+- Props : `trips[]`, `userPosition`, `radius`, `onTripClick`
+- Gère le cercle de rayon et les marqueurs
+
+---
+
+## 4. Cartes Mapbox réelles sur les autres pages
+
+### TripDetailPage
+- Remplacer le placeholder par une vraie carte Mapbox traçant l'itinéraire (LineString GeoJSON de `getRoute()`)
+- Marqueurs aux arrêts intermédiaires
+
+### PublishPage
+- Carte interactive affichant le tracé au fur et à mesure que l'utilisateur saisit départ/arrêts/arrivée
+- Utiliser `geocode()` + `getRoute()` de `src/lib/mapbox.ts`
+
+### DriverDashboard
+- Remplacer le placeholder par une vraie carte Mapbox avec position GPS et cercle de rayon
+
+---
+
+## Ordre d'exécution
+
+1. Installer `mapbox-gl` + créer `MapboxSearch.tsx`
+2. Rééquilibrer TripDetailPage et PublishPage
+3. Créer `UserModeContext` + intégrer le switch dans ProfilePage/SideNav
+4. Adapter HomePage (actions rapides par mode + code couleur)
+5. Refondre SearchPage avec mode carte + marqueurs + rayon
+6. Intégrer cartes Mapbox réelles sur TripDetail, Publish, DriverDashboard
 
