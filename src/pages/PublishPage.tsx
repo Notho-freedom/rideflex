@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, MapPin, Calendar, Clock, Users, Euro, Plus, X, Briefcase, PawPrint, RotateCcw, Repeat } from 'lucide-react';
 import { RFButton } from '../components/rideflex/RFButton';
 import { RFCard, RFCardContent } from '../components/rideflex/RFCard';
 import { RFInput } from '../components/rideflex/RFInput';
 import { RFSeparator } from '../components/rideflex/RFSeparator';
 import { RFSwitch } from '../components/rideflex/RFSwitch';
+import { MapboxMap } from '../components/rideflex/MapboxMap';
+import { geocode, getRoute, type RouteResult } from '../lib/mapbox';
 
 interface PublishPageProps {
   navigate: (page: string) => void;
@@ -20,6 +22,10 @@ export function PublishPage({ navigate }: PublishPageProps) {
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
+  const [departure, setDeparture] = useState('');
+  const [arrival, setArrival] = useState('');
+  const [routeData, setRouteData] = useState<RouteResult | null>(null);
+  const [mapMarkers, setMapMarkers] = useState<Array<{ lng: number; lat: number; color?: string }>>([]);
 
   const addStop = () => setStops([...stops, '']);
   const removeStop = (index: number) => setStops(stops.filter((_, i) => i !== index));
@@ -39,54 +45,89 @@ export function PublishPage({ navigate }: PublishPageProps) {
 
   const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
+  // Auto-calculate route when departure/arrival change
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (!departure.trim() || !arrival.trim()) return;
+      try {
+        const [fromResults, toResults] = await Promise.all([geocode(departure), geocode(arrival)]);
+        if (!fromResults.length || !toResults.length) return;
+        const from = fromResults[0].center;
+        const to = toResults[0].center;
+
+        const stopCoords: [number, number][] = [];
+        for (const s of stops) {
+          if (s.trim()) {
+            const r = await geocode(s);
+            if (r.length) stopCoords.push(r[0].center);
+          }
+        }
+
+        const markers = [
+          { lng: from[0], lat: from[1], color: 'hsl(214, 100%, 50%)' },
+          ...stopCoords.map(c => ({ lng: c[0], lat: c[1], color: 'hsl(214, 70%, 70%)' })),
+          { lng: to[0], lat: to[1], color: 'hsl(168, 100%, 39%)' },
+        ];
+        setMapMarkers(markers);
+
+        const route = await getRoute(from, to, stopCoords);
+        setRouteData(route);
+      } catch { /* ignore */ }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [departure, arrival, stops]);
+
   return (
     <div className="min-h-screen bg-background pb-24 lg:pb-8">
       <div className="bg-card px-4 pt-12 lg:pt-6 pb-4 shadow-sm">
-        <div className="flex items-center mb-2 max-w-xl lg:max-w-4xl mx-auto">
+        <div className="flex items-center mb-2 max-w-xl lg:max-w-5xl mx-auto">
           <button onClick={() => navigate('home')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
           <h1 className="text-xl font-bold text-foreground ml-2">Publier un trajet</h1>
         </div>
       </div>
 
-      <div className="p-4 max-w-xl lg:max-w-4xl mx-auto lg:grid lg:grid-cols-2 lg:gap-6">
-        {/* Left: Form */}
-        <div className="space-y-6">
+      <div className="p-4 max-w-xl lg:max-w-5xl mx-auto">
+        {/* 2-col form on desktop */}
+        <div className="lg:grid lg:grid-cols-2 lg:gap-6">
+          {/* Col 1: Itinéraire + Date */}
           <RFCard>
             <RFCardContent className="p-5 space-y-6">
               <div className="space-y-4">
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Itinéraire</h2>
                 <div className="flex items-center space-x-3">
-                  <MapPin className="text-brand-blue w-5 h-5 shrink-0" />
-                  <div className="flex-1"><RFInput placeholder="Lieu de départ exact" /></div>
+                  <MapPin className="text-primary w-5 h-5 shrink-0" />
+                  <div className="flex-1">
+                    <RFInput
+                      placeholder="Lieu de départ exact"
+                      value={departure}
+                      onChange={(e) => setDeparture(e.target.value)}
+                    />
+                  </div>
                 </div>
 
-                {/* Intermediate stops */}
                 {stops.map((stop, i) => (
-                  <div key={i} className="flex items-center space-x-3 ml-2 pl-3 border-l-2 border-dashed border-brand-blue/30">
-                    <MapPin className="text-brand-blue/50 w-4 h-4 shrink-0" />
+                  <div key={i} className="flex items-center space-x-3 ml-2 pl-3 border-l-2 border-dashed border-primary/30">
+                    <MapPin className="text-primary/50 w-4 h-4 shrink-0" />
                     <div className="flex-1">
-                      <RFInput
-                        placeholder={`Arrêt ${i + 1}`}
-                        value={stop}
-                        onChange={(e) => updateStop(i, e.target.value)}
-                      />
+                      <RFInput placeholder={`Arrêt ${i + 1}`} value={stop} onChange={(e) => updateStop(i, e.target.value)} />
                     </div>
-                    <button onClick={() => removeStop(i)} className="p-1 text-muted-foreground hover:text-destructive">
-                      <X className="w-4 h-4" />
-                    </button>
+                    <button onClick={() => removeStop(i)} className="p-1 text-muted-foreground hover:text-destructive"><X className="w-4 h-4" /></button>
                   </div>
                 ))}
 
-                <button
-                  onClick={addStop}
-                  className="flex items-center gap-2 text-sm text-brand-blue font-medium hover:text-brand-blue/80 transition-colors ml-8"
-                >
+                <button onClick={addStop} className="flex items-center gap-2 text-sm text-primary font-medium hover:text-primary/80 transition-colors ml-8">
                   <Plus className="w-4 h-4" />Ajouter un arrêt
                 </button>
 
                 <div className="flex items-center space-x-3">
-                  <MapPin className="text-brand-teal w-5 h-5 shrink-0" />
-                  <div className="flex-1"><RFInput placeholder="Lieu d'arrivée exact" /></div>
+                  <MapPin className="text-secondary w-5 h-5 shrink-0" />
+                  <div className="flex-1">
+                    <RFInput
+                      placeholder="Lieu d'arrivée exact"
+                      value={arrival}
+                      onChange={(e) => setArrival(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -105,7 +146,6 @@ export function PublishPage({ navigate }: PublishPageProps) {
                   </div>
                 </div>
 
-                {/* Round trip toggle */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <RotateCcw className="w-5 h-5 text-muted-foreground" />
@@ -115,7 +155,7 @@ export function PublishPage({ navigate }: PublishPageProps) {
                 </div>
 
                 {isRoundTrip && (
-                  <div className="pl-8 space-y-3 border-l-2 border-dashed border-brand-teal/30">
+                  <div className="pl-8 space-y-3 border-l-2 border-dashed border-secondary/30">
                     <p className="text-xs font-semibold text-muted-foreground uppercase">Retour</p>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="flex items-center space-x-3">
@@ -130,7 +170,6 @@ export function PublishPage({ navigate }: PublishPageProps) {
                   </div>
                 )}
 
-                {/* Recurrence toggle */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Repeat className="w-5 h-5 text-muted-foreground" />
@@ -140,7 +179,7 @@ export function PublishPage({ navigate }: PublishPageProps) {
                 </div>
 
                 {isRecurring && (
-                  <div className="pl-8 space-y-3 border-l-2 border-dashed border-brand-blue/30">
+                  <div className="pl-8 space-y-3 border-l-2 border-dashed border-primary/30">
                     <div className="flex bg-muted rounded-lg p-1">
                       {(['daily', 'weekly', 'monthly'] as const).map(t => (
                         <button
@@ -168,10 +207,13 @@ export function PublishPage({ navigate }: PublishPageProps) {
                   </div>
                 )}
               </div>
+            </RFCardContent>
+          </RFCard>
 
-              <RFSeparator />
-
-              <div className="space-y-4">
+          {/* Col 2: Détails + Sièges */}
+          <div className="space-y-6 mt-6 lg:mt-0">
+            <RFCard>
+              <RFCardContent className="p-5 space-y-4">
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Détails</h2>
                 <div className="flex items-center space-x-3">
                   <Users className="text-muted-foreground w-5 h-5 shrink-0" />
@@ -192,7 +234,6 @@ export function PublishPage({ navigate }: PublishPageProps) {
                   </div>
                 </div>
 
-                {/* Luggage & Animals */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Briefcase className="w-5 h-5 text-muted-foreground" />
@@ -207,61 +248,56 @@ export function PublishPage({ navigate }: PublishPageProps) {
                   </div>
                   <RFSwitch checked={acceptsAnimals} onCheckedChange={setAcceptsAnimals} />
                 </div>
-              </div>
-            </RFCardContent>
-          </RFCard>
+              </RFCardContent>
+            </RFCard>
 
-          {/* Seat Schema */}
-          <RFCard>
-            <RFCardContent className="p-5">
-              <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4">Configuration des sièges</h2>
-              <div className="flex justify-center">
-                <div className="grid grid-cols-3 gap-3 w-fit">
-                  {/* Row 1: driver + front passenger */}
-                  <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center text-muted-foreground/50 border-2 border-muted cursor-not-allowed">
-                    <Users className="w-5 h-5" />
-                  </div>
-                  <div className="w-14 h-14" />
-                  <button
-                    onClick={() => toggleSeat(1)}
-                    className={`w-14 h-14 rounded-xl flex items-center justify-center border-2 transition-all ${selectedSeats.includes(1) ? 'bg-primary/10 border-brand-blue text-brand-blue' : 'bg-card border-border text-muted-foreground hover:border-brand-blue/50'}`}
-                  >
-                    <span className="text-xs font-bold">1</span>
-                  </button>
-                  {/* Row 2: back seats */}
-                  {[2, 3, 4].map((seat) => (
-                    <button
-                      key={seat}
-                      onClick={() => toggleSeat(seat)}
-                      className={`w-14 h-14 rounded-xl flex items-center justify-center border-2 transition-all ${selectedSeats.includes(seat) ? 'bg-primary/10 border-brand-blue text-brand-blue' : 'bg-card border-border text-muted-foreground hover:border-brand-blue/50'}`}
-                    >
-                      <span className="text-xs font-bold">{seat}</span>
+            {/* Seat Schema */}
+            <RFCard>
+              <RFCardContent className="p-5">
+                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4">Configuration des sièges</h2>
+                <div className="flex justify-center">
+                  <div className="grid grid-cols-3 gap-3 w-fit">
+                    <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center text-muted-foreground/50 border-2 border-muted cursor-not-allowed">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <div className="w-14 h-14" />
+                    <button onClick={() => toggleSeat(1)} className={`w-14 h-14 rounded-xl flex items-center justify-center border-2 transition-all ${selectedSeats.includes(1) ? 'bg-primary/10 border-primary text-primary' : 'bg-card border-border text-muted-foreground hover:border-primary/50'}`}>
+                      <span className="text-xs font-bold">1</span>
                     </button>
-                  ))}
+                    {[2, 3, 4].map((seat) => (
+                      <button key={seat} onClick={() => toggleSeat(seat)} className={`w-14 h-14 rounded-xl flex items-center justify-center border-2 transition-all ${selectedSeats.includes(seat) ? 'bg-primary/10 border-primary text-primary' : 'bg-card border-border text-muted-foreground hover:border-primary/50'}`}>
+                        <span className="text-xs font-bold">{seat}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <p className="text-xs text-muted-foreground text-center mt-3">Cliquez pour sélectionner/désélectionner les sièges</p>
-            </RFCardContent>
-          </RFCard>
+                <p className="text-xs text-muted-foreground text-center mt-3">Cliquez pour sélectionner/désélectionner les sièges</p>
+              </RFCardContent>
+            </RFCard>
+          </div>
         </div>
 
-        {/* Right: Map placeholder */}
-        <div className="mt-6 lg:mt-0">
-          <RFCard className="h-64 lg:h-full lg:min-h-[400px] overflow-hidden">
-            <RFCardContent className="p-0 h-full relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 flex items-center justify-center">
-                <div className="text-center">
-                  <MapPin className="w-10 h-10 text-brand-blue mx-auto mb-2 opacity-40" />
-                  <p className="text-sm text-muted-foreground font-medium">Carte interactive</p>
-                  <p className="text-xs text-muted-foreground">Le trajet s'affichera ici</p>
-                </div>
+        {/* Map — full width below both columns */}
+        <div className="mt-6">
+          <RFCard className="overflow-hidden">
+            <RFCardContent className="p-0">
+              <div className="h-64 lg:h-80">
+                <MapboxMap
+                  center={routeData ? undefined : [-73.5673, 45.5017]}
+                  zoom={routeData ? undefined : 5}
+                  pitch={30}
+                  bearing={0}
+                  route={routeData?.geometry || null}
+                  markers={mapMarkers}
+                  show3DBuildings={false}
+                />
               </div>
             </RFCardContent>
           </RFCard>
         </div>
 
         {/* CTA */}
-        <div className="lg:col-span-2 mt-6">
+        <div className="mt-6">
           <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={() => { alert('Trajet publié avec succès !'); navigate('home'); }}>
             Publier mon trajet
           </RFButton>
