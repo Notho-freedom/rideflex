@@ -28,10 +28,10 @@ export function useTripRequests() {
     setLoading(true);
     const { data } = await supabase
       .from('trip_requests')
-      .select('*, publisher:profiles!trip_requests_publisher_id_fkey(full_name, avatar_url, rating_avg)')
+      .select('*, publisher:profiles(full_name, avatar_url, rating_avg)')
       .eq('status', 'active')
       .order('created_at', { ascending: false });
-    setRequests((data as TripRequest[]) || []);
+    setRequests((data as unknown as TripRequest[]) || []);
     setLoading(false);
   };
 
