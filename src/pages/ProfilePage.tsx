@@ -5,6 +5,8 @@ import { RFButton } from '../components/rideflex/RFButton';
 import { RFSeparator } from '../components/rideflex/RFSeparator';
 import { RFSwitch } from '../components/rideflex/RFSwitch';
 import { useUserMode } from '../contexts/UserModeContext';
+import { useProfile } from '../hooks/useProfile';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ProfilePageProps {
   navigate: (page: string) => void;
@@ -19,6 +21,13 @@ const menuItems = [
 
 export function ProfilePage({ navigate }: ProfilePageProps) {
   const { mode, isDriver, toggleMode } = useUserMode();
+  const { profile } = useProfile();
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('auth');
+  };
 
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-8">
@@ -32,19 +41,17 @@ export function ProfilePage({ navigate }: ProfilePageProps) {
           </div>
           <div className="flex items-center space-x-4">
             <RFAvatar className="w-20 h-20 border-2 border-card shadow-md">
-              <RFAvatarImage src="https://i.pravatar.cc/150?u=me" />
-              <RFAvatarFallback>ME</RFAvatarFallback>
+              <RFAvatarImage src={profile?.avatar_url || ''} />
+              <RFAvatarFallback>{profile?.full_name?.charAt(0) || 'U'}</RFAvatarFallback>
             </RFAvatar>
             <div>
-              <h2 className="text-xl font-bold text-foreground">Alexandre B.</h2>
+              <h2 className="text-xl font-bold text-foreground">{profile?.full_name || 'Utilisateur'}</h2>
               <div className="flex items-center text-sm text-muted-foreground mt-1">
                 <Star className="w-4 h-4 text-yellow-500 mr-1 fill-current" />
-                <span className="font-medium mr-1">4.9</span>
-                <span>(124 avis)</span>
+                <span className="font-medium mr-1">{profile?.rating_avg?.toFixed(1) || '0.0'}</span>
+                <span>({profile?.total_trips || 0} trajets)</span>
               </div>
-              <span className={`inline-block mt-2 px-2 py-1 text-xs font-semibold rounded-md ${
-                isDriver ? 'bg-secondary/10 text-secondary' : 'bg-primary/10 text-primary'
-              }`}>
+              <span className={`inline-block mt-2 px-2 py-1 text-xs font-semibold rounded-md ${isDriver ? 'bg-secondary/10 text-secondary' : 'bg-primary/10 text-primary'}`}>
                 {isDriver ? '🚗 Chauffeur' : '👤 Passager'}
               </span>
             </div>
@@ -64,10 +71,7 @@ export function ProfilePage({ navigate }: ProfilePageProps) {
                   </p>
                 </div>
               </div>
-              <RFSwitch
-                checked={isDriver}
-                onCheckedChange={toggleMode}
-              />
+              <RFSwitch checked={isDriver} onCheckedChange={toggleMode} />
             </div>
           </div>
         </div>
@@ -76,10 +80,7 @@ export function ProfilePage({ navigate }: ProfilePageProps) {
           <div className="bg-card rounded-xl shadow-sm overflow-hidden">
             {menuItems.map((item, index) => (
               <Fragment key={index}>
-                <div
-                  className="flex items-center justify-between p-4 hover:bg-muted cursor-pointer transition-colors"
-                  onClick={() => navigate(item.page)}
-                >
+                <div className="flex items-center justify-between p-4 hover:bg-muted cursor-pointer transition-colors" onClick={() => navigate(item.page)}>
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-muted rounded-lg text-muted-foreground"><item.icon className="w-5 h-5" /></div>
                     <span className="font-medium text-foreground">{item.label}</span>
@@ -93,7 +94,7 @@ export function ProfilePage({ navigate }: ProfilePageProps) {
         </div>
 
         <div className="mt-6 px-4">
-          <RFButton variant="outline" className="w-full h-12 text-destructive border-destructive/20 hover:bg-destructive/5" onClick={() => navigate('auth')}>
+          <RFButton variant="outline" className="w-full h-12 text-destructive border-destructive/20 hover:bg-destructive/5" onClick={handleLogout}>
             <LogOut className="w-5 h-5 mr-2" />Se déconnecter
           </RFButton>
         </div>
