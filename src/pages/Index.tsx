@@ -22,10 +22,13 @@ import { BookingRequestsPage } from './BookingRequestsPage';
 import { NotificationsSheet } from '../components/rideflex/NotificationsSheet';
 import { PublishRequestPage } from './PublishRequestPage';
 import { TripRequestsPage } from './TripRequestsPage';
+import { useAuth } from '../contexts/AuthContext';
 
 const Index = () => {
   const [currentPage, setCurrentPage] = useState('home');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [pageData, setPageData] = useState<any>(null);
+  const { user, loading } = useAuth();
 
   const navigate = (page: string, data?: any) => {
     if (page === 'notifications') {
@@ -34,8 +37,24 @@ const Index = () => {
         return;
       }
     }
+    setPageData(data || null);
     setCurrentPage(page);
   };
+
+  // Auth guard — redirect to auth if not logged in (except auth/onboarding pages)
+  const publicPages = ['auth', 'onboarding'];
+  if (!loading && !user && !publicPages.includes(currentPage)) {
+    // Show auth page for unauthenticated users
+    return <AuthPage navigate={navigate} />;
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   const renderPage = () => {
     switch (currentPage) {
@@ -47,14 +66,14 @@ const Index = () => {
       case 'auth': return <AuthPage navigate={navigate} />;
       case 'onboarding': return <OnboardingPage navigate={navigate} />;
       case 'driver-dashboard': return <DriverDashboard navigate={navigate} />;
-      case 'trip-detail': return <TripDetailPage navigate={navigate} />;
-      case 'booking-confirmation': return <BookingConfirmation navigate={navigate} />;
-      case 'chat': return <ChatPage navigate={navigate} />;
+      case 'trip-detail': return <TripDetailPage navigate={navigate} tripId={pageData?.tripId} />;
+      case 'booking-confirmation': return <BookingConfirmation navigate={navigate} tripId={pageData?.tripId} />;
+      case 'chat': return <ChatPage navigate={navigate} otherUserId={pageData?.userId} otherUserName={pageData?.userName} />;
       case 'notifications': return <NotificationsPage navigate={navigate} />;
       case 'my-trips': return <MyTripsPage navigate={navigate} />;
       case 'edit-profile': return <EditProfilePage navigate={navigate} />;
       case 'settings': return <SettingsPage navigate={navigate} />;
-      case 'rating': return <RatingPage navigate={navigate} />;
+      case 'rating': return <RatingPage navigate={navigate} tripId={pageData?.tripId} toUserId={pageData?.toUserId} toUserName={pageData?.toUserName} />;
       case 'payment-methods': return <PaymentMethodsPage navigate={navigate} />;
       case 'identity-verification': return <IdentityVerificationPage navigate={navigate} />;
       case 'booking-requests': return <BookingRequestsPage navigate={navigate} />;

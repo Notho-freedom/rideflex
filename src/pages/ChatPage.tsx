@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Send, Phone, MapPin } from 'lucide-react';
 import { RFInput } from '../components/rideflex/RFInput';
 import { RFAvatar, RFAvatarImage, RFAvatarFallback } from '../components/rideflex/RFAvatar';
+import { useMessages } from '../hooks/useMessages';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ChatPageProps {
   navigate: (page: string) => void;
+  otherUserId?: string;
+  otherUserName?: string;
 }
 
-// WhatsApp icon as inline SVG
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -16,17 +19,19 @@ function WhatsAppIcon({ className }: { className?: string }) {
   );
 }
 
-export function ChatPage({ navigate }: ChatPageProps) {
+export function ChatPage({ navigate, otherUserId, otherUserName }: ChatPageProps) {
+  const { user } = useAuth();
+  const targetUserId = otherUserId || '';
+  const { messages: dbMessages, loading, sendMessage, fetchMessages } = useMessages(targetUserId);
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([
-    { id: 1, text: 'Bonjour, le point de rdv est bien devant la gare ?', sender: 'me', time: '10:15' },
-    { id: 2, text: 'Bonjour ! Oui tout à fait, au niveau du dépose-minute.', sender: 'other', time: '10:20' },
-    { id: 3, text: 'Parfait, on se retrouve devant la gare.', sender: 'other', time: '10:30' },
-  ]);
 
-  const handleSend = () => {
+  useEffect(() => {
+    if (targetUserId) fetchMessages();
+  }, [targetUserId]);
+
+  const handleSend = async () => {
     if (!message.trim()) return;
-    setMessages([...messages, { id: Date.now(), text: message, sender: 'me', time: 'Maintenant' }]);
+    await sendMessage(message.trim());
     setMessage('');
   };
 
@@ -40,15 +45,15 @@ export function ChatPage({ navigate }: ChatPageProps) {
 
   const handleShareLocation = () => {
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
         const { latitude, longitude } = pos.coords;
-        const url = `https://www.google.com/maps?q=${latitude},${longitude}`;
-        setMessages([...messages, { id: Date.now(), text: `📍 Ma position : ${url}`, sender: 'me', time: 'Maintenant' }]);
-      }, () => {
-        setMessages([...messages, { id: Date.now(), text: '📍 Impossible d\'obtenir la position.', sender: 'me', time: 'Maintenant' }]);
+        const url = `📍 Ma position : https://www.google.com/maps?q=${latitude},${longitude}`;
+        await sendMessage(url);
       });
     }
   };
+
+  const displayName = otherUserName || 'Conversation';
 
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-3xl lg:max-w-4xl mx-auto">
@@ -56,39 +61,44 @@ export function ChatPage({ navigate }: ChatPageProps) {
         <div className="flex items-center">
           <button onClick={() => navigate('messages')} className="p-2 -ml-2 text-muted-foreground mr-2"><ArrowLeft className="w-6 h-6" /></button>
           <RFAvatar className="w-10 h-10 mr-3">
-            <RFAvatarImage src="https://i.pravatar.cc/150?u=1" />
-            <RFAvatarFallback>SM</RFAvatarFallback>
+            <RFAvatarImage src={`https://i.pravatar.cc/150?u=${targetUserId}`} />
+            <RFAvatarFallback>{displayName.charAt(0)}</RFAvatarFallback>
           </RFAvatar>
           <div>
-            <h1 className="text-base font-bold text-foreground">Sophie M.</h1>
-            <p className="text-xs text-brand-teal">En ligne</p>
+            <h1 className="text-base font-bold text-foreground">{displayName}</h1>
+            <p className="text-xs text-secondary">En ligne</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={handleWhatsApp} className="p-2 text-green-600 bg-green-50 rounded-full hover:bg-green-100 transition-colors">
             <WhatsAppIcon className="w-5 h-5" />
           </button>
-          <button onClick={handleCall} className="p-2 text-brand-blue bg-primary/10 rounded-full hover:bg-primary/20 transition-colors">
+          <button onClick={handleCall} className="p-2 text-primary bg-primary/10 rounded-full hover:bg-primary/20 transition-colors">
             <Phone className="w-5 h-5" />
           </button>
         </div>
       </div>
 
       <div className="flex-1 p-4 overflow-y-auto space-y-4">
-        <div className="text-center text-xs text-muted-foreground my-4">Aujourd'hui</div>
-        {messages.map((msg) => (
-          <div key={msg.id} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[75%] lg:max-w-[60%] rounded-2xl px-4 py-2 ${msg.sender === 'me' ? 'bg-gradient-brand text-primary-foreground rounded-tr-sm' : 'bg-card border border-border text-foreground rounded-tl-sm shadow-sm'}`}>
-              <p className="text-sm">{msg.text}</p>
-              <p className={`text-[10px] mt-1 text-right ${msg.sender === 'me' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{msg.time}</p>
+        <div className="text-center text-xs text-muted-foreground my-4">Conversation</div>
+        {dbMessages.map((msg) => (
+          <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[75%] lg:max-w-[60%] rounded-2xl px-4 py-2 ${msg.sender_id === user?.id ? 'bg-gradient-brand text-primary-foreground rounded-tr-sm' : 'bg-card border border-border text-foreground rounded-tl-sm shadow-sm'}`}>
+              <p className="text-sm">{msg.content}</p>
+              <p className={`text-[10px] mt-1 text-right ${msg.sender_id === user?.id ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                {new Date(msg.created_at).toLocaleTimeString('fr', { hour: '2-digit', minute: '2-digit' })}
+              </p>
             </div>
           </div>
         ))}
+        {dbMessages.length === 0 && !loading && (
+          <div className="text-center text-muted-foreground text-sm py-8">Aucun message. Commencez la conversation !</div>
+        )}
       </div>
 
       <div className="bg-card p-4 border-t border-border pb-safe">
         <div className="flex items-center space-x-2">
-          <button onClick={handleShareLocation} className="p-2 text-muted-foreground hover:text-brand-blue transition-colors shrink-0">
+          <button onClick={handleShareLocation} className="p-2 text-muted-foreground hover:text-primary transition-colors shrink-0">
             <MapPin className="w-5 h-5" />
           </button>
           <RFInput
@@ -98,7 +108,7 @@ export function ChatPage({ navigate }: ChatPageProps) {
             className="flex-1 rounded-full bg-muted border-transparent focus-visible:ring-ring"
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
           />
-          <button onClick={handleSend} className="w-10 h-10 rounded-full bg-brand-blue flex items-center justify-center text-primary-foreground shrink-0">
+          <button onClick={handleSend} className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground shrink-0">
             <Send className="w-5 h-5 ml-1" />
           </button>
         </div>

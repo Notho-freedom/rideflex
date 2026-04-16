@@ -6,9 +6,10 @@ import { RFSeparator } from '../components/rideflex/RFSeparator';
 
 interface BookingConfirmationProps {
   navigate: (page: string) => void;
+  tripId?: string;
 }
 
-export function BookingConfirmation({ navigate }: BookingConfirmationProps) {
+export function BookingConfirmation({ navigate, tripId }: BookingConfirmationProps) {
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [isConfirmed, setIsConfirmed] = useState(false);
 
@@ -17,10 +18,10 @@ export function BookingConfirmation({ navigate }: BookingConfirmationProps) {
       <div className="min-h-screen bg-card flex flex-col items-center justify-center p-6 text-center">
         <div className="max-w-md mx-auto">
           <div className="w-24 h-24 bg-secondary/10 rounded-full flex items-center justify-center mb-6 mx-auto">
-            <CheckCircle2 className="w-12 h-12 text-brand-teal" />
+            <CheckCircle2 className="w-12 h-12 text-secondary" />
           </div>
           <h1 className="text-2xl font-bold text-foreground mb-2">Réservation confirmée !</h1>
-          <p className="text-muted-foreground mb-8">Votre place pour le trajet Paris → Lyon a bien été réservée.</p>
+          <p className="text-muted-foreground mb-8">Votre place a bien été réservée. Vous recevrez une notification quand le chauffeur acceptera.</p>
           <RFButton variant="brand" size="xl" className="w-full" onClick={() => navigate('home')}>Retour à l'accueil</RFButton>
         </div>
       </div>
@@ -49,7 +50,7 @@ export function BookingConfirmation({ navigate }: BookingConfirmationProps) {
             <RFSeparator className="my-3" />
             <div className="flex justify-between items-center">
               <span className="font-bold text-foreground">Total</span>
-              <span className="text-xl font-bold text-brand-blue">25,00 €</span>
+              <span className="text-xl font-bold text-primary">25,00 €</span>
             </div>
           </RFCardContent>
         </RFCard>
@@ -57,29 +58,29 @@ export function BookingConfirmation({ navigate }: BookingConfirmationProps) {
         <div>
           <h2 className="text-lg font-bold text-foreground mb-4 px-1">Moyen de paiement</h2>
           <div className="space-y-3">
-            <RFCard className={`cursor-pointer border-2 transition-all ${paymentMethod === 'card' ? 'border-brand-blue bg-primary/5' : 'border-border'}`} onClick={() => setPaymentMethod('card')}>
+            <RFCard className={`cursor-pointer border-2 transition-all ${paymentMethod === 'card' ? 'border-primary bg-primary/5' : 'border-border'}`} onClick={() => setPaymentMethod('card')}>
               <RFCardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-full ${paymentMethod === 'card' ? 'bg-brand-blue text-primary-foreground' : 'bg-muted text-muted-foreground'}`}><CreditCard className="w-5 h-5" /></div>
+                  <div className={`p-2 rounded-full ${paymentMethod === 'card' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}><CreditCard className="w-5 h-5" /></div>
                   <span className="font-semibold text-foreground">Carte bancaire</span>
                 </div>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'card' ? 'border-brand-blue' : 'border-muted-foreground'}`}>
-                  {paymentMethod === 'card' && <div className="w-2.5 h-2.5 bg-brand-blue rounded-full"></div>}
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'card' ? 'border-primary' : 'border-muted-foreground'}`}>
+                  {paymentMethod === 'card' && <div className="w-2.5 h-2.5 bg-primary rounded-full"></div>}
                 </div>
               </RFCardContent>
             </RFCard>
 
-            <RFCard className={`cursor-pointer border-2 transition-all ${paymentMethod === 'cash' ? 'border-brand-teal bg-secondary/5' : 'border-border'}`} onClick={() => setPaymentMethod('cash')}>
+            <RFCard className={`cursor-pointer border-2 transition-all ${paymentMethod === 'cash' ? 'border-secondary bg-secondary/5' : 'border-border'}`} onClick={() => setPaymentMethod('cash')}>
               <RFCardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-full ${paymentMethod === 'cash' ? 'bg-brand-teal text-primary-foreground' : 'bg-muted text-muted-foreground'}`}><Banknote className="w-5 h-5" /></div>
+                  <div className={`p-2 rounded-full ${paymentMethod === 'cash' ? 'bg-secondary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}><Banknote className="w-5 h-5" /></div>
                   <div>
                     <span className="font-semibold text-foreground block">Espèces</span>
                     <span className="text-xs text-muted-foreground">Paiement direct au chauffeur</span>
                   </div>
                 </div>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'cash' ? 'border-brand-teal' : 'border-muted-foreground'}`}>
-                  {paymentMethod === 'cash' && <div className="w-2.5 h-2.5 bg-brand-teal rounded-full"></div>}
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'cash' ? 'border-secondary' : 'border-muted-foreground'}`}>
+                  {paymentMethod === 'cash' && <div className="w-2.5 h-2.5 bg-secondary rounded-full"></div>}
                 </div>
               </RFCardContent>
             </RFCard>

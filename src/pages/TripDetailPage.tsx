@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, ShieldCheck, MessageCircle, Star, Info, Plus, Briefcase, PawPrint, Lock, Clock, Phone } from 'lucide-react';
+import { ArrowLeft, MapPin, ShieldCheck, MessageCircle, Star, Info, Plus, Briefcase, PawPrint, Lock, Clock, Phone, Loader2 } from 'lucide-react';
 import { RFButton } from '../components/rideflex/RFButton';
 import { RFCard, RFCardContent } from '../components/rideflex/RFCard';
 import { RFAvatar, RFAvatarImage, RFAvatarFallback } from '../components/rideflex/RFAvatar';
@@ -8,40 +8,97 @@ import { RFInput } from '../components/rideflex/RFInput';
 import { RFBadge } from '../components/rideflex/RFBadge';
 import { MapboxMap } from '../components/rideflex/MapboxMap';
 import { getRoute, type RouteResult } from '../lib/mapbox';
+import { supabase } from '../integrations/supabase/client';
+import { useBookings } from '../hooks/useBookings';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../hooks/use-toast';
 
 interface TripDetailPageProps {
   navigate: (page: string, data?: any) => void;
+  tripId?: string;
 }
 
-export function TripDetailPage({ navigate }: TripDetailPageProps) {
+export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
   const [showSuggestStop, setShowSuggestStop] = useState(false);
   const [bookPrivate, setBookPrivate] = useState(false);
   const [routeData, setRouteData] = useState<RouteResult | null>(null);
-
-  const stops = [
-    { time: '14:30', place: 'Paris', detail: 'Gare de Lyon, Hall 1', type: 'departure', coords: [2.3730, 48.8448] as [number, number] },
-    { time: '15:45', place: 'Fontainebleau', detail: 'Centre-ville', type: 'stop', coords: [2.7010, 48.4010] as [number, number] },
-    { time: '18:00', place: 'Lyon', detail: 'Gare Part-Dieu', type: 'arrival', coords: [4.8590, 45.7602] as [number, number] },
-  ];
-
-  const tripFeatures = { luggage: true, animals: false, estimatedArrival: '18:00' };
-  const pricePerSeat = 25;
-  const totalSeats = 4;
+  const [trip, setTrip] = useState<any>(null);
+  const [driver, setDriver] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [booking, setBooking] = useState(false);
+  const { createBooking } = useBookings();
+  const { user } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
-    const from = stops[0].coords;
-    const to = stops[stops.length - 1].coords;
-    const mid = stops.filter(s => s.type === 'stop').map(s => s.coords);
-    getRoute(from, to, mid).then(r => setRouteData(r));
-  }, []);
+    if (tripId) {
+      loadTrip(tripId);
+    } else {
+      // Fallback mock data for demo
+      setTrip({
+        from_city: 'Paris', to_city: 'Lyon', departure_time: '14:30',
+        estimated_arrival_time: '18:00', price: 25, seats_total: 4, seats_available: 3,
+        accepts_luggage: true, accepts_animals: false, from_address: 'Gare de Lyon, Hall 1',
+        to_address: 'Gare Part-Dieu', from_lat: 48.8448, from_lng: 2.3730,
+        to_lat: 45.7602, to_lng: 4.8590, stops: [{ place: 'Fontainebleau', lat: 48.4010, lng: 2.7010 }],
+      });
+      setDriver({ full_name: 'Sophie M.', rating_avg: 4.9, total_trips: 42, vehicle_brand: 'Peugeot', vehicle_model: '208', vehicle_color: 'Blanche' });
+      setLoading(false);
+    }
+  }, [tripId]);
 
-  const mapMarkers = stops.map(s => ({
-    lng: s.coords[0],
-    lat: s.coords[1],
-    color: s.type === 'departure' ? 'hsl(214, 100%, 50%)' : s.type === 'arrival' ? 'hsl(168, 100%, 39%)' : 'hsl(214, 70%, 70%)',
-    label: s.type === 'stop' ? '•' : '',
-    popup: `<strong>${s.place}</strong><br/><span style="color:#888">${s.detail}</span>`,
-  }));
+  const loadTrip = async (id: string) => {
+    setLoading(true);
+    const { data: tripData } = await supabase.from('trips').select('*').eq('id', id).single();
+    if (tripData) {
+      setTrip(tripData);
+      const { data: driverData } = await supabase.from('profiles').select('*').eq('id', tripData.driver_id).single();
+      setDriver(driverData);
+
+      if (tripData.from_lat && tripData.to_lat) {
+        const stops = (tripData.stops as any[])?.map((s: any) => [s.lng, s.lat] as [number, number]) || [];
+        const route = await getRoute([tripData.from_lng, tripData.from_lat], [tripData.to_lng, tripData.to_lat], stops);
+        setRouteData(route);
+      }
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (!tripId && trip?.from_lat) {
+      const stops = (trip.stops as any[])?.map((s: any) => [s.lng, s.lat] as [number, number]) || [];
+      getRoute([trip.from_lng, trip.from_lat], [trip.to_lng, trip.to_lat], stops).then(r => setRouteData(r));
+    }
+  }, [trip]);
+
+  const handleBook = async () => {
+    if (!tripId) {
+      navigate('booking-confirmation');
+      return;
+    }
+    setBooking(true);
+    const seats = bookPrivate ? trip.seats_available : 1;
+    const { error } = await createBooking(tripId, seats, bookPrivate ? 'Réservation privée' : undefined);
+    setBooking(false);
+    if (error) {
+      toast({ title: 'Erreur', description: 'Impossible de réserver.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Réservation envoyée !' });
+      navigate('booking-confirmation', { tripId });
+    }
+  };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  }
+
+  if (!trip) return null;
+
+  const mapMarkers = [
+    { lng: trip.from_lng || 2.3730, lat: trip.from_lat || 48.8448, color: 'hsl(214, 100%, 50%)' },
+    ...((trip.stops as any[]) || []).map((s: any) => ({ lng: s.lng, lat: s.lat, color: 'hsl(214, 70%, 70%)' })),
+    { lng: trip.to_lng || 4.8590, lat: trip.to_lat || 45.7602, color: 'hsl(168, 100%, 39%)' },
+  ];
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -55,40 +112,38 @@ export function TripDetailPage({ navigate }: TripDetailPageProps) {
 
       <div className="flex-1 overflow-y-auto pb-24 lg:pb-8">
         <div className="max-w-2xl lg:max-w-5xl mx-auto lg:grid lg:grid-cols-5 lg:gap-6 lg:p-6">
-          {/* Left column — 3/5 */}
           <div className="lg:col-span-3">
-            {/* Timeline */}
             <div className="bg-card p-6 mb-2 lg:rounded-xl lg:shadow-sm lg:mb-4">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-foreground">Aujourd'hui</h2>
+                <h2 className="text-xl font-bold text-foreground">{trip.departure_date || "Aujourd'hui"}</h2>
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                   <Clock className="w-4 h-4" />
-                  <span>Arrivée estimée : <strong className="text-foreground">{tripFeatures.estimatedArrival}</strong></span>
+                  <span>Arrivée estimée : <strong className="text-foreground">{trip.estimated_arrival_time || '—'}</strong></span>
                 </div>
               </div>
               <div className="relative pl-6 border-l-2 border-border space-y-6 ml-2">
-                {stops.map((stop, i) => (
+                <div className="relative">
+                  <div className="absolute -left-[29px] top-1 w-4 h-4 rounded-full bg-card border-4 border-primary" />
+                  <p className="text-lg font-bold text-foreground">{trip.departure_time}</p>
+                  <p className="text-base font-medium text-foreground">{trip.from_city}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{trip.from_address || ''}</p>
+                </div>
+                {((trip.stops as any[]) || []).map((stop: any, i: number) => (
                   <div key={i} className="relative">
-                    <div className={`absolute -left-[29px] top-1 w-4 h-4 rounded-full ${
-                      stop.type === 'departure' ? 'bg-card border-4 border-primary' :
-                      stop.type === 'arrival' ? 'bg-secondary' :
-                      'bg-card border-4 border-primary/50'
-                    }`} />
-                    <p className="text-lg font-bold text-foreground">{stop.time}</p>
-                    <p className="text-base font-medium text-foreground">{stop.place}</p>
-                    <p className="text-sm text-muted-foreground mt-1">{stop.detail}</p>
-                    {stop.type === 'stop' && (
-                      <span className="text-xs text-primary/70 font-medium">Arrêt intermédiaire</span>
-                    )}
+                    <div className="absolute -left-[29px] top-1 w-4 h-4 rounded-full bg-card border-4 border-primary/50" />
+                    <p className="text-base font-medium text-foreground">{stop.place || stop.city || 'Arrêt'}</p>
+                    <span className="text-xs text-primary/70 font-medium">Arrêt intermédiaire</span>
                   </div>
                 ))}
+                <div className="relative">
+                  <div className="absolute -left-[29px] top-1 w-4 h-4 rounded-full bg-secondary" />
+                  <p className="text-lg font-bold text-foreground">{trip.estimated_arrival_time || '—'}</p>
+                  <p className="text-base font-medium text-foreground">{trip.to_city}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{trip.to_address || ''}</p>
+                </div>
               </div>
-
               {!showSuggestStop ? (
-                <button
-                  onClick={() => setShowSuggestStop(true)}
-                  className="mt-4 flex items-center gap-2 text-sm text-primary font-medium hover:text-primary/80 transition-colors"
-                >
+                <button onClick={() => setShowSuggestStop(true)} className="mt-4 flex items-center gap-2 text-sm text-primary font-medium hover:text-primary/80 transition-colors">
                   <Plus className="w-4 h-4" />Suggérer un arrêt
                 </button>
               ) : (
@@ -100,33 +155,32 @@ export function TripDetailPage({ navigate }: TripDetailPageProps) {
                   </div>
                   <div className="flex gap-2">
                     <RFButton variant="outline" size="sm" onClick={() => setShowSuggestStop(false)}>Annuler</RFButton>
-                    <RFButton variant="brand" size="sm" onClick={() => { alert('Suggestion envoyée !'); setShowSuggestStop(false); }}>Envoyer</RFButton>
+                    <RFButton variant="brand" size="sm" onClick={() => { toast({ title: 'Suggestion envoyée !' }); setShowSuggestStop(false); }}>Envoyer</RFButton>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Right column — 2/5 */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Driver info */}
             <div className="bg-card p-4 mb-2 lg:rounded-xl lg:shadow-sm lg:mb-0">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center space-x-4">
                   <RFAvatar className="w-14 h-14">
-                    <RFAvatarImage src="https://i.pravatar.cc/150?u=1" />
-                    <RFAvatarFallback>SM</RFAvatarFallback>
+                    <RFAvatarImage src={driver?.avatar_url || `https://i.pravatar.cc/150?u=${trip.driver_id}`} />
+                    <RFAvatarFallback>{driver?.full_name?.charAt(0) || 'U'}</RFAvatarFallback>
                   </RFAvatar>
                   <div>
-                    <h3 className="text-lg font-bold text-foreground">Sophie M.</h3>
+                    <h3 className="text-lg font-bold text-foreground">{driver?.full_name || 'Chauffeur'}</h3>
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Star className="w-4 h-4 text-yellow-500 mr-1 fill-current" />
-                      <span className="font-medium mr-1">4.9</span><span>(42 avis)</span>
+                      <span className="font-medium mr-1">{driver?.rating_avg?.toFixed(1) || '0.0'}</span>
+                      <span>({driver?.total_trips || 0} trajets)</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button className="p-3 bg-primary/10 text-primary rounded-full" onClick={() => navigate('chat')}>
+                  <button className="p-3 bg-primary/10 text-primary rounded-full" onClick={() => navigate('chat', { userId: trip.driver_id, userName: driver?.full_name })}>
                     <MessageCircle className="w-5 h-5" />
                   </button>
                   <button className="p-3 bg-secondary/10 text-secondary rounded-full">
@@ -137,18 +191,17 @@ export function TripDetailPage({ navigate }: TripDetailPageProps) {
               <RFSeparator className="my-4" />
               <div className="space-y-3">
                 <div className="flex items-center text-foreground"><ShieldCheck className="w-5 h-5 text-secondary mr-3" /><span className="text-sm">Identité vérifiée</span></div>
-                <div className="flex items-center text-foreground"><Info className="w-5 h-5 text-muted-foreground mr-3" /><span className="text-sm">Peugeot 208 • Blanche</span></div>
+                {driver?.vehicle_brand && (
+                  <div className="flex items-center text-foreground"><Info className="w-5 h-5 text-muted-foreground mr-3" /><span className="text-sm">{driver.vehicle_brand} {driver.vehicle_model} • {driver.vehicle_color}</span></div>
+                )}
               </div>
             </div>
 
-            {/* Features — moved from left */}
             <div className="bg-card p-4 lg:rounded-xl lg:shadow-sm">
               <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">Caractéristiques</h3>
               <div className="flex flex-wrap gap-2">
-                {tripFeatures.luggage && (
-                  <RFBadge variant="outline"><Briefcase className="w-3.5 h-3.5 mr-1" />Bagages acceptés</RFBadge>
-                )}
-                {tripFeatures.animals ? (
+                {trip.accepts_luggage && <RFBadge variant="outline"><Briefcase className="w-3.5 h-3.5 mr-1" />Bagages acceptés</RFBadge>}
+                {trip.accepts_animals ? (
                   <RFBadge variant="outline"><PawPrint className="w-3.5 h-3.5 mr-1" />Animaux acceptés</RFBadge>
                 ) : (
                   <RFBadge variant="outline" className="text-muted-foreground/60"><PawPrint className="w-3.5 h-3.5 mr-1" />Pas d'animaux</RFBadge>
@@ -156,12 +209,12 @@ export function TripDetailPage({ navigate }: TripDetailPageProps) {
               </div>
             </div>
 
-            {/* Price + private — moved from left */}
             <div className="bg-card p-4 lg:rounded-xl lg:shadow-sm space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground font-medium">Prix pour 1 place</span>
-                <span className="text-2xl font-bold text-primary">{pricePerSeat},00 €</span>
+                <span className="text-2xl font-bold text-primary">{trip.price},00 €</span>
               </div>
+              <p className="text-xs text-muted-foreground">{trip.seats_available} place{trip.seats_available > 1 ? 's' : ''} disponible{trip.seats_available > 1 ? 's' : ''}</p>
               <RFSeparator />
               <button
                 onClick={() => setBookPrivate(!bookPrivate)}
@@ -174,24 +227,22 @@ export function TripDetailPage({ navigate }: TripDetailPageProps) {
                     <p className="text-xs text-muted-foreground">Toute la voiture pour vous</p>
                   </div>
                 </div>
-                <span className="font-bold text-foreground">{pricePerSeat * totalSeats},00 €</span>
+                <span className="font-bold text-foreground">{trip.price * trip.seats_total},00 €</span>
               </button>
             </div>
 
-            {/* Desktop CTA */}
             <div className="hidden lg:block">
-              <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={() => navigate('booking-confirmation')}>
-                {bookPrivate ? `Réserver en privé — ${pricePerSeat * totalSeats}€` : 'Continuer'}
+              <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={handleBook} disabled={booking}>
+                {booking ? <Loader2 className="w-5 h-5 animate-spin" /> : bookPrivate ? `Réserver en privé — ${trip.price * trip.seats_total}€` : 'Continuer'}
               </RFButton>
             </div>
           </div>
 
-          {/* Map — full width across both columns */}
           <div className="lg:col-span-5 mt-2 lg:mt-0">
             <div className="bg-card lg:rounded-xl lg:shadow-sm overflow-hidden">
               <div className="h-64 lg:h-80">
                 <MapboxMap
-                  center={[2.3730, 48.8448]}
+                  center={[trip.from_lng || 2.3730, trip.from_lat || 48.8448]}
                   zoom={6}
                   pitch={30}
                   bearing={0}
@@ -206,8 +257,8 @@ export function TripDetailPage({ navigate }: TripDetailPageProps) {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 pb-safe z-50 lg:hidden">
-        <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={() => navigate('booking-confirmation')}>
-          {bookPrivate ? `Réserver en privé — ${pricePerSeat * totalSeats}€` : 'Continuer'}
+        <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={handleBook} disabled={booking}>
+          {booking ? <Loader2 className="w-5 h-5 animate-spin" /> : bookPrivate ? `Réserver en privé — ${trip.price * trip.seats_total}€` : 'Continuer'}
         </RFButton>
       </div>
     </div>
