@@ -1,170 +1,157 @@
 
 
-# Plan — Développement intégral du backend RideFlex
+# Plan — Backend complet : tout connecter au backend
 
-## Etat actuel
-
-- **Client Supabase** : configuré (`src/integrations/supabase/client.ts`)
-- **AuthContext** : existe, fonctionnel avec `signUp`/`signIn`/`signOut`
-- **Hooks** : `useProfile`, `useTrips`, `useBookings`, `useMessages`, `useNotifications` — tous codés et prêts mais les tables Supabase n'existent pas encore
-- **Types** : `src/types/database.ts` complet
-- **Service Worker** : `public/sw.js` basique en place
-- **Pages** : toutes utilisent des données mockées (hardcoded arrays)
-- **Aucune table Supabase** n'existe — la base de données est vide
-- **Aucun dossier `supabase/`** n'existe (pas de config.toml, pas de migrations, pas d'edge functions)
+Je connecte les dernières pages mockées au backend Supabase, j'ajoute la logique métier qui manque (acceptation de réservation → décrément des places, notifications automatiques), je crée l'Edge Function de notifications push, et je rends les pages restantes (Settings, IdentityVerification, PaymentMethods) entièrement fonctionnelles.
 
 ---
 
-## Ce qui doit être fait
+## 1. MessagesPage — liste de conversations réelles
 
-### 1. Initialiser l'infrastructure Supabase (migrations SQL)
+**Problème :** liste hardcodée + InlineChat avec messages mock.
 
-Créer `supabase/config.toml` et les migrations pour toutes les tables :
+**Solution :**
+- Nouveau hook `useConversations()` qui interroge `messages` pour l'utilisateur courant et regroupe par interlocuteur (dernier message, count non lus, jointure profil).
+- Souscription Realtime sur `messages` pour rafraîchir la liste à chaque nouveau message.
+- Suppression de l'`InlineChat` mock → réutilisation du composant `ChatPage` directement dans le split desktop.
+- Recherche fonctionnelle (filtre par nom).
+- Au clic sur conversation : marque les messages reçus comme `read_at = now()`.
 
-**Tables à créer :**
-- `profiles` (id = auth.users.id, full_name, avatar_url, phone, bio, is_driver, vehicle_*, rating_avg, total_trips, whatsapp_number, show_whatsapp)
-- `user_roles` (user_id, role enum admin/moderator/user)
-- `trips` (driver_id, from/to city+address+lat/lng, stops jsonb, departure_date/time, price, seats_total/available, status, accepts_luggage/animals, is_recurring, recurrence_pattern, return_trip_id, estimated_arrival_time)
-- `trip_requests` (publisher_id, from/to city, desired_date/time, proposed_price, seats_needed, accepts_luggage/animals, is_private, status)
-- `bookings` (trip_id, passenger_id, status, seats, message, is_private, total_price, platform_fee, driver_payout)
-- `messages` (sender_id, receiver_id, trip_id, content, read_at)
-- `notifications` (user_id, title, body, type, data jsonb, read)
-- `ratings` (trip_id, from_user_id, to_user_id, score, tags, comment)
-- `push_subscriptions` (user_id, endpoint, keys jsonb)
+---
 
-**Sécurité :**
-- `has_role()` security definer function
-- RLS sur chaque table
-- Trigger `handle_new_user()` pour auto-créer un profil à l'inscription
-- Enable Realtime sur `messages` et `notifications`
+## 2. MyTripsPage — vraies réservations + trajets
 
-### 2. Brancher AuthPage sur le vrai backend
+**Problème :** données hardcodées.
 
-- Connecter les inputs email/password aux fonctions `signIn`/`signUp` de `useAuth`
-- Ajouter les états de chargement et gestion d'erreurs (toast)
-- Ajouter le flow de mot de passe oublié
-- Protéger les routes : rediriger vers `auth` si non connecté (dans `Index.tsx`)
-- Après inscription, rediriger vers sélection de mode (passager/chauffeur)
+**Solution :**
+- Adaptation selon le mode utilisateur (`useUserMode`) :
+  - **Passager :** charge `bookings` joints à `trips` + `profiles` (chauffeur).
+  - **Chauffeur :** charge ses propres `trips` directement.
+- Onglet "À venir" : `departure_date >= today` ; "Historique" : sinon.
+- Bouton "Annuler" sur trajets pending/confirmed (update status `cancelled`).
+- Bouton "Noter" navigue vers `rating` avec `tripId` + `toUserId`.
+- Affichage du status réel depuis la base.
 
-### 3. Brancher ProfilePage + EditProfilePage
+---
 
-- Utiliser `useProfile` pour charger/sauvegarder le vrai profil
-- Upload d'avatar vers Supabase Storage
-- Afficher les vraies données (nom, téléphone, véhicule, etc.)
+## 3. BookingRequestsPage — backend complet
 
-### 4. Brancher PublishPage sur `useTrips.createTrip`
+**Problème :** liste hardcodée + actions purement locales.
 
-- Collecter toutes les données du formulaire (départ, arrivée, arrêts, date, heure, prix, sièges, options)
-- Appeler `geocode()` + `getRoute()` pour calculer les coordonnées et l'heure d'arrivée
-- Insérer le trajet en base via `useTrips.createTrip`
-- Gérer aller-retour (créer 2 trajets liés)
+**Solution :**
+- Charge les `bookings` reçues sur les trips du chauffeur courant (jointure `bookings → trips → profiles passager`).
+- Onglets : "En attente" (`status='pending'`) / "Traitées" (`accepted`/`rejected`/`cancelled`).
+- **Accepter** : trigger SQL côté serveur qui décrémente `seats_available` du trip + crée une notification pour le passager. Côté client : `updateBookingStatus(id, 'accepted')`.
+- **Refuser** : `updateBookingStatus(id, 'rejected')` + notification au passager.
+- Refus si plus de sièges dispo : message d'erreur.
 
-### 5. Brancher SearchPage sur `useTrips.fetchTrips`
+---
 
-- Remplacer le tableau mock par des requêtes Supabase réelles
-- Filtres dynamiques : ville, date, bagages, animaux, dispo maintenant
-- Joindre les profils des chauffeurs pour afficher nom/rating
-- Mode carte : afficher les vrais marqueurs depuis les coordonnées lat/lng
+## 4. Migration SQL — logique métier serveur
 
-### 6. Brancher TripDetailPage
+Une nouvelle migration ajoute :
 
-- Charger un trajet par ID depuis Supabase
-- Charger le profil du chauffeur
-- Bouton "Réserver" → `useBookings.createBooking`
-- Carte Mapbox avec le vrai itinéraire
+- **Trigger `on_booking_status_change`** sur `bookings` (AFTER UPDATE) :
+  - Si `accepted` → décrémente `seats_available` du trip, crée notification passager.
+  - Si `rejected` ou `cancelled` (depuis `accepted`) → ré-incrémente les places, notification passager.
+- **Trigger `on_booking_created`** sur `bookings` (AFTER INSERT) → notification au chauffeur.
+- **Trigger `on_message_created`** sur `messages` (AFTER INSERT) → notification au receveur (type `message`).
+- **Trigger `notify_push_on_notification`** sur `notifications` (AFTER INSERT) → appelle l'Edge Function `send-push-notification` via `pg_net` (HTTP).
+- Politique RLS supplémentaire : autoriser `INSERT` sur `notifications` quand `auth.uid() != user_id` mais via fonctions security definer (corrige le besoin actuel où passager doit pouvoir notifier le chauffeur).
+  - Plus simple : créer une fonction `create_notification(user_id, title, body, type, data)` SECURITY DEFINER, appelée par les triggers.
 
-### 7. Brancher MyTripsPage + BookingRequestsPage
+---
 
-- `MyTripsPage` : charger les réservations du passager (bookings + trips joints)
-- `BookingRequestsPage` : charger les réservations reçues par le chauffeur
-- Actions accepter/refuser via `useBookings.updateBookingStatus`
+## 5. Edge Function `send-push-notification`
 
-### 8. Brancher MessagesPage + ChatPage
+- Lit le payload `{ user_id, title, body, data }`.
+- Charge les `push_subscriptions` de l'utilisateur via service role.
+- Envoie via Web Push API (lib `npm:web-push`) avec les clés VAPID.
+- **Secrets requis** : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` → je demanderai à l'utilisateur de les ajouter.
+- CORS configuré pour appel depuis pg_net et le client.
 
-- Liste des conversations : requête distincte sur `messages` groupé par interlocuteur
-- Chat : utiliser `useMessages` (déjà Realtime) avec le vrai `otherUserId`
-- Envoyer des messages via `sendMessage`
+## 6. usePushNotifications — finaliser l'abonnement client
 
-### 9. Brancher NotificationsSheet + NotificationsPage
+- Utiliser la `VAPID_PUBLIC_KEY` (publique) exposée via une variable env `VITE_VAPID_PUBLIC_KEY`.
+- Au login, demander permission, créer la subscription avec la clé VAPID, stocker dans `push_subscriptions`.
+- Hook appelé une fois dans `Index.tsx` après authentification.
 
-- Utiliser `useNotifications` (déjà Realtime) pour charger les vraies notifications
-- Afficher le `unreadCount` sur l'icône de notification
-- Mark as read au clic
-- Navigation vers l'élément concerné (trip-detail, chat, etc.)
+---
 
-### 10. Brancher PublishRequestPage + TripRequestsPage
+## 7. SettingsPage — préférences persistées
 
-- `PublishRequestPage` : insérer dans `trip_requests`
-- `TripRequestsPage` : charger les demandes actives avec profil du passager
+- Ajouter colonnes `notif_push`, `notif_email`, `notif_sms`, `dark_mode`, `language` sur `profiles`.
+- Charger/sauvegarder via `updateProfile`.
+- "Supprimer mon compte" : confirmation modal + appel Edge Function `delete-account` (SECURITY DEFINER) qui supprime profil + auth.users.
 
-### 11. Brancher DriverDashboard (Mode Dispo)
+## 8. PaymentMethodsPage — table `payment_methods`
 
-- Sauvegarder la position GPS et le rayon en base (nouveau champ ou table)
-- Requête pour trouver les chauffeurs disponibles dans un rayon
+- Nouvelle table `payment_methods` (user_id, type, last4, expiry, is_default, brand, stripe_payment_method_id nullable).
+- CRUD complet avec RLS owner-only.
+- Pour l'instant on stocke des cartes de démo (pas de Stripe Connect tant que non explicitement demandé) — UI fonctionnelle, données persistées.
 
-### 12. Brancher RatingPage
+## 9. IdentityVerificationPage — table `identity_documents`
 
-- Insérer une note dans `ratings`
-- Mettre à jour `rating_avg` du profil via trigger ou calcul
+- Nouvelle table `identity_documents` (user_id, type enum: id_card/selfie/phone/license, status enum: pending/verified/rejected, file_url, uploaded_at).
+- Bucket storage `identity-docs` privé avec RLS owner-only.
+- Upload réel des photos (carte d'ident, selfie, permis). Status par défaut `pending`.
+- Affichage du % de vérification = ratio docs verified / requis.
 
-### 13. Edge Function — Notifications push
+## 10. DriverDashboard — persistance disponibilité
 
-- Créer `supabase/functions/send-push-notification/index.ts`
-- Recevoir un payload (user_id, title, body)
-- Chercher les subscriptions push de l'utilisateur
-- Envoyer via Web Push API
-- Créer un trigger SQL sur `INSERT INTO notifications` qui appelle cette fonction
+- Nouvelle table `driver_availability` (user_id PK, is_available, lat, lng, radius_km, available_until, updated_at).
+- Toggle "Activer mode dispo" upsert dans cette table avec position GPS.
+- Slider rayon + heure de fin sauvegardés en temps réel (debounce).
+- Page `SearchPage` peut interroger cette table en mode "Dispo maintenant" pour afficher les chauffeurs réellement actifs.
 
-### 14. Push Subscription côté client
+## 11. ChatPage — bouton WhatsApp conditionnel
 
-- Après login, demander la permission de notification
-- Enregistrer la subscription dans `push_subscriptions`
-- Mettre à jour `sw.js` avec l'icône du logo
+- Charger le profil de l'autre utilisateur pour vérifier `show_whatsapp` + `whatsapp_number`.
+- Afficher le bouton WhatsApp uniquement si activé, sinon le masquer.
+- Bouton appel : utilise le `phone` réel du profil (masqué si non renseigné).
+
+## 12. NotificationsSheet — badge unreadCount
+
+- Déjà connecté à `useNotifications` ✅ — vérifier juste l'affichage du badge.
+
+## 13. PublishRequestPage — déjà branché ✅
+## 14. AuthPage — déjà branché ✅, mais ajouter écran de sélection mode après inscription (passager par défaut)
 
 ---
 
 ## Fichiers à créer
 
-- `supabase/config.toml`
-- `supabase/migrations/00001_initial_schema.sql` (toutes les tables, RLS, triggers)
+- `src/hooks/useConversations.ts`
+- `src/hooks/useDriverAvailability.ts`
+- `src/hooks/usePaymentMethods.ts`
+- `src/hooks/useIdentityVerification.ts`
 - `supabase/functions/send-push-notification/index.ts`
-- `src/hooks/useTripRequests.ts`
-- `src/hooks/useRatings.ts`
-- `src/hooks/usePushNotifications.ts` (gestion subscription côté client)
+- `supabase/functions/delete-account/index.ts`
+- Migration SQL : triggers métier + tables `payment_methods`, `identity_documents`, `driver_availability` + colonnes prefs sur `profiles`
 
 ## Fichiers à modifier
 
-- `src/pages/AuthPage.tsx` — brancher signIn/signUp réels + gestion erreurs
-- `src/pages/Index.tsx` — protection des routes (auth guard)
-- `src/pages/HomePage.tsx` — charger les trajets récents depuis Supabase
-- `src/pages/SearchPage.tsx` — remplacer mock par `useTrips.fetchTrips`
-- `src/pages/PublishPage.tsx` — brancher `createTrip`
-- `src/pages/TripDetailPage.tsx` — charger trajet + chauffeur réels
-- `src/pages/MyTripsPage.tsx` — brancher `useBookings`
-- `src/pages/BookingRequestsPage.tsx` — brancher `useBookings`
-- `src/pages/MessagesPage.tsx` — brancher conversations réelles
-- `src/pages/ChatPage.tsx` — brancher `useMessages`
-- `src/pages/ProfilePage.tsx` — brancher `useProfile`
-- `src/pages/EditProfilePage.tsx` — brancher `updateProfile`
-- `src/pages/PublishRequestPage.tsx` — brancher insert `trip_requests`
-- `src/pages/TripRequestsPage.tsx` — brancher select `trip_requests`
-- `src/pages/DriverDashboard.tsx` — position GPS réelle + rayon
-- `src/pages/RatingPage.tsx` — brancher insert `ratings`
-- `src/pages/NotificationsPage.tsx` — brancher `useNotifications`
-- `src/components/rideflex/NotificationsSheet.tsx` — brancher `useNotifications`
-- `public/sw.js` — mettre à jour l'icône
+- `src/pages/MessagesPage.tsx`, `MyTripsPage.tsx`, `BookingRequestsPage.tsx`
+- `src/pages/SettingsPage.tsx`, `PaymentMethodsPage.tsx`, `IdentityVerificationPage.tsx`
+- `src/pages/DriverDashboard.tsx`, `ChatPage.tsx`
+- `src/hooks/usePushNotifications.ts` (clé VAPID réelle)
+- `src/pages/Index.tsx` (appeler `usePushNotifications` après auth)
+- `src/types/database.ts` (nouveaux types)
+
+## Secrets à demander
+
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (pour Web Push) — je peux les générer côté serveur via Edge Function de bootstrap si tu préfères.
 
 ## Ordre d'exécution
 
-1. Migration SQL (toutes les tables + RLS + triggers)
-2. Auth (AuthPage branché + route guard)
-3. Profile (ProfilePage + EditProfilePage)
-4. Trips (PublishPage + SearchPage + TripDetailPage)
-5. Bookings (MyTripsPage + BookingRequestsPage + BookingConfirmation)
-6. Messages (MessagesPage + ChatPage)
-7. Notifications in-app (NotificationsSheet + NotificationsPage)
-8. Trip Requests (PublishRequestPage + TripRequestsPage)
-9. Ratings (RatingPage)
-10. Driver Dashboard (position + rayon)
-11. Push notifications (Edge Function + client subscription)
+1. Migration SQL (triggers métier + nouvelles tables + colonnes prefs)
+2. MessagesPage (useConversations + Realtime)
+3. MyTripsPage (passager + chauffeur)
+4. BookingRequestsPage (vraies bookings + accepter/refuser)
+5. DriverDashboard (driver_availability)
+6. SettingsPage + PaymentMethodsPage + IdentityVerificationPage
+7. ChatPage (WhatsApp conditionnel + appel téléphone réel)
+8. Edge Function send-push-notification + secrets VAPID
+9. usePushNotifications branché complètement
+10. AuthPage : sélection mode après inscription
 
