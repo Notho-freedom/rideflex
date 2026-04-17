@@ -67,6 +67,66 @@ export type Database = {
           },
         ]
       }
+      driver_availability: {
+        Row: {
+          available_until: string | null
+          is_available: boolean
+          lat: number | null
+          lng: number | null
+          radius_km: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          available_until?: string | null
+          is_available?: boolean
+          lat?: number | null
+          lng?: number | null
+          radius_km?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          available_until?: string | null
+          is_available?: boolean
+          lat?: number | null
+          lng?: number | null
+          radius_km?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      identity_documents: {
+        Row: {
+          created_at: string
+          file_url: string | null
+          id: string
+          status: Database["public"]["Enums"]["id_doc_status"]
+          type: Database["public"]["Enums"]["id_doc_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["id_doc_status"]
+          type: Database["public"]["Enums"]["id_doc_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["id_doc_status"]
+          type?: Database["public"]["Enums"]["id_doc_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -138,15 +198,56 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_methods: {
+        Row: {
+          brand: string
+          created_at: string
+          expiry: string
+          id: string
+          is_default: boolean
+          last4: string
+          stripe_payment_method_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand: string
+          created_at?: string
+          expiry: string
+          id?: string
+          is_default?: boolean
+          last4: string
+          stripe_payment_method_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand?: string
+          created_at?: string
+          expiry?: string
+          id?: string
+          is_default?: boolean
+          last4?: string
+          stripe_payment_method_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           bio: string | null
           created_at: string
+          dark_mode: boolean
           full_name: string | null
           id: string
           is_driver: boolean
+          language: string
           license_plate: string | null
+          notif_email: boolean
+          notif_push: boolean
+          notif_sms: boolean
           phone: string | null
           rating_avg: number
           show_whatsapp: boolean
@@ -161,10 +262,15 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          dark_mode?: boolean
           full_name?: string | null
           id: string
           is_driver?: boolean
+          language?: string
           license_plate?: string | null
+          notif_email?: boolean
+          notif_push?: boolean
+          notif_sms?: boolean
           phone?: string | null
           rating_avg?: number
           show_whatsapp?: boolean
@@ -179,10 +285,15 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          dark_mode?: boolean
           full_name?: string | null
           id?: string
           is_driver?: boolean
+          language?: string
           license_plate?: string | null
+          notif_email?: boolean
+          notif_push?: boolean
+          notif_sms?: boolean
           phone?: string | null
           rating_avg?: number
           show_whatsapp?: boolean
@@ -429,6 +540,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_notification: {
+        Args: {
+          _body: string
+          _data?: Json
+          _title: string
+          _type: Database["public"]["Enums"]["notification_type"]
+          _user_id: string
+        }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -440,6 +561,8 @@ export type Database = {
     Enums: {
       app_role: "admin" | "moderator" | "user"
       booking_status: "pending" | "accepted" | "rejected" | "cancelled"
+      id_doc_status: "pending" | "verified" | "rejected"
+      id_doc_type: "id_card" | "selfie" | "license" | "phone"
       notification_type: "booking" | "message" | "trip" | "system"
       trip_request_status: "active" | "matched" | "cancelled" | "expired"
       trip_status: "active" | "completed" | "cancelled"
@@ -572,6 +695,8 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "moderator", "user"],
       booking_status: ["pending", "accepted", "rejected", "cancelled"],
+      id_doc_status: ["pending", "verified", "rejected"],
+      id_doc_type: ["id_card", "selfie", "license", "phone"],
       notification_type: ["booking", "message", "trip", "system"],
       trip_request_status: ["active", "matched", "cancelled", "expired"],
       trip_status: ["active", "completed", "cancelled"],
