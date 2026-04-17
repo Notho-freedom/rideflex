@@ -23,12 +23,14 @@ import { NotificationsSheet } from '../components/rideflex/NotificationsSheet';
 import { PublishRequestPage } from './PublishRequestPage';
 import { TripRequestsPage } from './TripRequestsPage';
 import { useAuth } from '../contexts/AuthContext';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 const Index = () => {
   const [currentPage, setCurrentPage] = useState('home');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [pageData, setPageData] = useState<any>(null);
   const { user, loading } = useAuth();
+  usePushNotifications();
 
   const navigate = (page: string, data?: any) => {
     if (page === 'notifications') {

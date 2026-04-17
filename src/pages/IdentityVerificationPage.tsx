@@ -1,102 +1,111 @@
-import React from 'react';
-import { ArrowLeft, ShieldCheck, Upload, CheckCircle2, Clock, Camera, FileText } from 'lucide-react';
-import { RFButton } from '../components/rideflex/RFButton';
+import React, { useRef } from 'react';
+import { ArrowLeft, ShieldCheck, FileText, Camera, Upload, CheckCircle2, Clock, Loader2, User } from 'lucide-react';
 import { RFCard, RFCardContent } from '../components/rideflex/RFCard';
-import { RFSeparator } from '../components/rideflex/RFSeparator';
+import { RFButton } from '../components/rideflex/RFButton';
 import { RFBadge } from '../components/rideflex/RFBadge';
+import { Progress } from '../components/ui/progress';
+import { useIdentityVerification, IdDocType } from '../hooks/useIdentityVerification';
+import { useToast } from '../hooks/use-toast';
 
 interface IdentityVerificationPageProps {
   navigate: (page: string) => void;
 }
 
-const steps = [
-  { id: 'id', title: "Pièce d'identité", desc: 'Carte d\'identité ou passeport', icon: FileText, status: 'verified' as const },
-  { id: 'selfie', title: 'Photo selfie', desc: 'Photo de votre visage pour vérification', icon: Camera, status: 'verified' as const },
-  { id: 'phone', title: 'Numéro de téléphone', desc: 'Vérification par code SMS', icon: ShieldCheck, status: 'verified' as const },
-  { id: 'license', title: 'Permis de conduire', desc: 'Requis pour les chauffeurs', icon: FileText, status: 'pending' as const },
+const STEPS: { id: IdDocType; title: string; description: string; icon: any }[] = [
+  { id: 'phone', title: 'Téléphone vérifié', description: 'Numéro confirmé par SMS', icon: User },
+  { id: 'id_card', title: "Pièce d'identité", description: "Carte d'identité ou passeport", icon: FileText },
+  { id: 'selfie', title: 'Selfie', description: 'Photo de votre visage', icon: Camera },
+  { id: 'license', title: 'Permis de conduire', description: 'Recto et verso', icon: FileText },
 ];
 
-const statusConfig = {
-  verified: { label: 'Vérifié', className: 'bg-green-100 text-green-800 border-0', icon: CheckCircle2 },
-  pending: { label: 'En attente', className: 'bg-yellow-100 text-yellow-800 border-0', icon: Clock },
-  required: { label: 'Requis', className: 'bg-muted text-muted-foreground border-0', icon: Upload },
-};
-
 export function IdentityVerificationPage({ navigate }: IdentityVerificationPageProps) {
+  const { docs, loading, uploadDocument, setPhoneVerified } = useIdentityVerification();
+  const { toast } = useToast();
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const getDoc = (type: IdDocType) => docs.find((d) => d.type === type);
+  const verifiedCount = docs.filter((d) => d.status === 'verified').length;
+  const progress = Math.round((verifiedCount / STEPS.length) * 100);
+
+  const handleUpload = async (type: IdDocType, file: File | null) => {
+    if (!file) return;
+    const { error } = await uploadDocument(type, file);
+    if (error) toast({ title: 'Erreur', description: String(error), variant: 'destructive' });
+    else toast({ title: 'Document envoyé', description: 'Vérification en cours.' });
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20 lg:pb-8">
       <div className="bg-card px-4 pt-12 lg:pt-6 pb-4 shadow-sm">
-        <div className="flex items-center mb-2 max-w-2xl lg:max-w-3xl mx-auto">
+        <div className="flex items-center mb-2 max-w-2xl mx-auto">
           <button onClick={() => navigate('profile')} className="p-2 -ml-2 text-muted-foreground"><ArrowLeft className="w-6 h-6" /></button>
           <h1 className="text-xl font-bold text-foreground ml-2">Vérification d'identité</h1>
         </div>
       </div>
 
-      <div className="p-4 space-y-6 max-w-2xl lg:max-w-3xl mx-auto">
-        <RFCard className="border-brand-teal/30 bg-secondary/5">
+      <div className="p-4 space-y-4 max-w-2xl mx-auto">
+        <RFCard className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20">
           <RFCardContent className="p-5">
-            <div className="flex items-center space-x-4 mb-3">
-              <div className="w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center">
-                <ShieldCheck className="w-6 h-6 text-brand-teal" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <ShieldCheck className="w-6 h-6 text-primary" />
+                <h2 className="font-bold text-foreground">Niveau de vérification</h2>
               </div>
-              <div>
-                <h2 className="text-lg font-bold text-foreground">Profil vérifié à 75%</h2>
-                <p className="text-sm text-muted-foreground">Complétez la vérification pour plus de confiance</p>
-              </div>
+              <span className="font-bold text-primary">{progress}%</span>
             </div>
-            <div className="w-full bg-muted rounded-full h-2">
-              <div className="bg-brand-teal h-2 rounded-full transition-all" style={{ width: '75%' }}></div>
-            </div>
+            <Progress value={progress} className="h-2" />
+            <p className="text-xs text-muted-foreground mt-2">{verifiedCount} / {STEPS.length} étapes complétées</p>
           </RFCardContent>
         </RFCard>
 
-        <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
-          {steps.map((step) => {
-            const config = statusConfig[step.status];
-            const StepIcon = step.icon;
-            const StatusIcon = config.icon;
-            return (
-              <RFCard key={step.id} className={`transition-all ${step.status === 'verified' ? 'border-green-200' : 'border-border'}`}>
-                <RFCardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className={`p-3 rounded-xl ${step.status === 'verified' ? 'bg-green-50 text-green-600' : 'bg-muted text-muted-foreground'}`}>
-                      <StepIcon className="w-5 h-5" />
+        {loading ? (
+          <div className="text-center py-8"><Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div>
+        ) : STEPS.map((step) => {
+          const doc = getDoc(step.id);
+          const status = doc?.status || 'required';
+          const Icon = step.icon;
+          return (
+            <RFCard key={step.id}>
+              <RFCardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-2 rounded-lg ${status === 'verified' ? 'bg-green-100 text-green-700' : status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-muted text-muted-foreground'}`}>
+                      <Icon className="w-5 h-5" />
                     </div>
                     <div>
-                      <p className="font-semibold text-foreground text-sm">{step.title}</p>
-                      <p className="text-xs text-muted-foreground">{step.desc}</p>
+                      <p className="font-semibold text-foreground">{step.title}</p>
+                      <p className="text-xs text-muted-foreground">{step.description}</p>
                     </div>
                   </div>
-                  <RFBadge className={config.className}>
-                    <StatusIcon className="w-3 h-3 mr-1" />{config.label}
+                  <RFBadge className={status === 'verified' ? 'bg-green-100 text-green-800 border-0' : status === 'pending' ? 'bg-yellow-100 text-yellow-800 border-0' : 'bg-muted text-muted-foreground border-0'}>
+                    {status === 'verified' ? <><CheckCircle2 className="w-3 h-3 mr-1" />Vérifié</> : status === 'pending' ? <><Clock className="w-3 h-3 mr-1" />En cours</> : 'Requis'}
                   </RFBadge>
-                </RFCardContent>
-              </RFCard>
-            );
-          })}
-        </div>
+                </div>
 
-        <RFSeparator />
-
-        <RFCard>
-          <RFCardContent className="p-5 text-center space-y-4">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-              <Upload className="w-8 h-8 text-brand-blue" />
-            </div>
-            <div>
-              <h3 className="font-bold text-foreground mb-1">Ajouter votre permis de conduire</h3>
-              <p className="text-sm text-muted-foreground">Prenez une photo claire de votre permis recto/verso</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <RFButton variant="brand" className="flex-1">
-                <Camera className="w-4 h-4 mr-2" />Prendre une photo
-              </RFButton>
-              <RFButton variant="outline" className="flex-1">
-                <Upload className="w-4 h-4 mr-2" />Importer depuis la galerie
-              </RFButton>
-            </div>
-          </RFCardContent>
-        </RFCard>
+                {status !== 'verified' && (
+                  step.id === 'phone' ? (
+                    <RFButton variant="outline" size="sm" className="w-full" onClick={setPhoneVerified}>
+                      Vérifier mon téléphone
+                    </RFButton>
+                  ) : (
+                    <>
+                      <input
+                        ref={(el) => (fileRefs.current[step.id] = el)}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleUpload(step.id, e.target.files?.[0] || null)}
+                      />
+                      <RFButton variant="outline" size="sm" className="w-full" onClick={() => fileRefs.current[step.id]?.click()}>
+                        <Upload className="w-4 h-4 mr-2" />Téléverser
+                      </RFButton>
+                    </>
+                  )
+                )}
+              </RFCardContent>
+            </RFCard>
+          );
+        })}
       </div>
     </div>
   );
