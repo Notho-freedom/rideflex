@@ -4,6 +4,7 @@ import { RFInput } from '../components/rideflex/RFInput';
 import { RFAvatar, RFAvatarImage, RFAvatarFallback } from '../components/rideflex/RFAvatar';
 import { useMessages } from '../hooks/useMessages';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../integrations/supabase/client';
 
 interface ChatPageProps {
   navigate: (page: string) => void;
@@ -24,9 +25,14 @@ export function ChatPage({ navigate, otherUserId, otherUserName }: ChatPageProps
   const targetUserId = otherUserId || '';
   const { messages: dbMessages, loading, sendMessage, fetchMessages } = useMessages(targetUserId);
   const [message, setMessage] = useState('');
+  const [otherProfile, setOtherProfile] = useState<any>(null);
 
   useEffect(() => {
-    if (targetUserId) fetchMessages();
+    if (!targetUserId) return;
+    fetchMessages();
+    supabase.from('profiles').select('id, full_name, avatar_url, phone, whatsapp_number, show_whatsapp').eq('id', targetUserId).maybeSingle()
+      .then(({ data }) => setOtherProfile(data));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetUserId]);
 
   const handleSend = async () => {
@@ -36,55 +42,59 @@ export function ChatPage({ navigate, otherUserId, otherUserName }: ChatPageProps
   };
 
   const handleCall = () => {
-    window.open('tel:+33612345678', '_self');
+    if (otherProfile?.phone) window.open(`tel:${otherProfile.phone}`, '_self');
   };
 
   const handleWhatsApp = () => {
-    window.open('https://wa.me/33612345678', '_blank');
+    const num = (otherProfile?.whatsapp_number || '').replace(/\D/g, '');
+    if (num) window.open(`https://wa.me/${num}`, '_blank');
   };
 
   const handleShareLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(async (pos) => {
         const { latitude, longitude } = pos.coords;
-        const url = `📍 Ma position : https://www.google.com/maps?q=${latitude},${longitude}`;
-        await sendMessage(url);
+        await sendMessage(`📍 Ma position : https://www.google.com/maps?q=${latitude},${longitude}`);
       });
     }
   };
 
-  const displayName = otherUserName || 'Conversation';
+  const displayName = otherUserName || otherProfile?.full_name || 'Conversation';
+  const showWhatsApp = otherProfile?.show_whatsapp && otherProfile?.whatsapp_number;
+  const showCall = !!otherProfile?.phone;
 
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-3xl lg:max-w-4xl mx-auto">
       <div className="bg-card px-4 pt-12 lg:pt-6 pb-4 shadow-sm flex items-center justify-between z-10">
         <div className="flex items-center">
-          <button onClick={() => navigate('messages')} className="p-2 -ml-2 text-muted-foreground mr-2"><ArrowLeft className="w-6 h-6" /></button>
+          <button onClick={() => navigate('messages')} className="p-2 -ml-2 text-muted-foreground mr-2 lg:hidden"><ArrowLeft className="w-6 h-6" /></button>
           <RFAvatar className="w-10 h-10 mr-3">
-            <RFAvatarImage src={`https://i.pravatar.cc/150?u=${targetUserId}`} />
+            <RFAvatarImage src={otherProfile?.avatar_url || undefined} />
             <RFAvatarFallback>{displayName.charAt(0)}</RFAvatarFallback>
           </RFAvatar>
           <div>
             <h1 className="text-base font-bold text-foreground">{displayName}</h1>
-            <p className="text-xs text-secondary">En ligne</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleWhatsApp} className="p-2 text-green-600 bg-green-50 rounded-full hover:bg-green-100 transition-colors">
-            <WhatsAppIcon className="w-5 h-5" />
-          </button>
-          <button onClick={handleCall} className="p-2 text-primary bg-primary/10 rounded-full hover:bg-primary/20 transition-colors">
-            <Phone className="w-5 h-5" />
-          </button>
+          {showWhatsApp && (
+            <button onClick={handleWhatsApp} className="p-2 text-green-600 bg-green-50 rounded-full hover:bg-green-100">
+              <WhatsAppIcon className="w-5 h-5" />
+            </button>
+          )}
+          {showCall && (
+            <button onClick={handleCall} className="p-2 text-primary bg-primary/10 rounded-full hover:bg-primary/20">
+              <Phone className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
       <div className="flex-1 p-4 overflow-y-auto space-y-4">
-        <div className="text-center text-xs text-muted-foreground my-4">Conversation</div>
         {dbMessages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[75%] lg:max-w-[60%] rounded-2xl px-4 py-2 ${msg.sender_id === user?.id ? 'bg-gradient-brand text-primary-foreground rounded-tr-sm' : 'bg-card border border-border text-foreground rounded-tl-sm shadow-sm'}`}>
-              <p className="text-sm">{msg.content}</p>
+              <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
               <p className={`text-[10px] mt-1 text-right ${msg.sender_id === user?.id ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
                 {new Date(msg.created_at).toLocaleTimeString('fr', { hour: '2-digit', minute: '2-digit' })}
               </p>
@@ -96,16 +106,16 @@ export function ChatPage({ navigate, otherUserId, otherUserName }: ChatPageProps
         )}
       </div>
 
-      <div className="bg-card p-4 border-t border-border pb-safe">
+      <div className="bg-card p-4 border-t border-border">
         <div className="flex items-center space-x-2">
-          <button onClick={handleShareLocation} className="p-2 text-muted-foreground hover:text-primary transition-colors shrink-0">
+          <button onClick={handleShareLocation} className="p-2 text-muted-foreground hover:text-primary shrink-0">
             <MapPin className="w-5 h-5" />
           </button>
           <RFInput
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Écrivez votre message..."
-            className="flex-1 rounded-full bg-muted border-transparent focus-visible:ring-ring"
+            className="flex-1 rounded-full bg-muted border-transparent"
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
           />
           <button onClick={handleSend} className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground shrink-0">
