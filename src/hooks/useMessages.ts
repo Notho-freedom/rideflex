@@ -34,7 +34,7 @@ export function useMessages(otherUserId?: string) {
     fetchMessages();
 
     const channel = supabase
-      .channel(`messages-${user.id}-${otherUserId}`)
+      .channel(`messages-${user.id}-${otherUserId}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
