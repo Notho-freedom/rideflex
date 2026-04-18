@@ -71,7 +71,7 @@ export function useConversations() {
     fetchConversations();
 
     const channel = supabase
-      .channel('conversations-' + user.id)
+      .channel(`conversations-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
         fetchConversations();
       })
