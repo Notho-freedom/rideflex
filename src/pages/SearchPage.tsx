@@ -38,7 +38,7 @@ export function SearchPage({ navigate }: SearchPageProps) {
 
   const fetchTrips = async () => {
     setLoading(true);
-    let query = supabase.from('trips').select('*, driver:profiles(full_name, avatar_url, rating_avg)').eq('status', 'active');
+    let query = supabase.from('trips').select('*, driver:profiles!trips_driver_id_fkey(full_name, avatar_url, rating_avg)').eq('status', 'active');
     if (fromSearch.trim()) query = query.ilike('from_city', `%${fromSearch}%`);
     if (toSearch.trim()) query = query.ilike('to_city', `%${toSearch}%`);
     if (filterLuggage) query = query.eq('accepts_luggage', true);

@@ -28,7 +28,7 @@ export function HomePage({ navigate }: HomePageProps) {
     setLoadingTrips(true);
     const { data } = await supabase
       .from('trips')
-      .select('*, driver:profiles(full_name, avatar_url, rating_avg)')
+      .select('*, driver:profiles!trips_driver_id_fkey(full_name, avatar_url, rating_avg)')
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(3);
