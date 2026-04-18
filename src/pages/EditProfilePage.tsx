@@ -75,7 +75,8 @@ export function EditProfilePage({ navigate }: EditProfilePageProps) {
       return;
     }
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
-    await updateProfile({ avatar_url: urlData.publicUrl });
+    const bustedUrl = `${urlData.publicUrl}?v=${Date.now()}`;
+    await updateProfile({ avatar_url: bustedUrl });
     setUploading(false);
     toast({ title: 'Photo mise à jour !' });
   };

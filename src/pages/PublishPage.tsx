@@ -34,8 +34,18 @@ export function PublishPage({ navigate }: PublishPageProps) {
   const [fromCoords, setFromCoords] = useState<[number, number] | null>(null);
   const [toCoords, setToCoords] = useState<[number, number] | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const { createTrip } = useTrips();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setUserPos([pos.coords.longitude, pos.coords.latitude]),
+      () => {},
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+  }, []);
 
   const addStop = () => setStops([...stops, '']);
   const removeStop = (index: number) => setStops(stops.filter((_, i) => i !== index));
@@ -242,7 +252,15 @@ export function PublishPage({ navigate }: PublishPageProps) {
           <RFCard className="overflow-hidden">
             <RFCardContent className="p-0">
               <div className="h-64 lg:h-80">
-                <MapboxMap center={routeData ? undefined : [-73.5673, 45.5017]} zoom={routeData ? undefined : 5} pitch={30} bearing={0} route={routeData?.geometry || null} markers={mapMarkers} show3DBuildings={false} />
+                <MapboxMap
+                  center={fromCoords || userPos || [-73.5673, 45.5017]}
+                  zoom={fromCoords ? 13 : userPos ? 12 : 4}
+                  pitch={30}
+                  bearing={0}
+                  route={routeData?.geometry || null}
+                  markers={mapMarkers}
+                  show3DBuildings={false}
+                />
               </div>
             </RFCardContent>
           </RFCard>

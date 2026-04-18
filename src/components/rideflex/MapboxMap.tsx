@@ -185,6 +185,24 @@ export function MapboxMap({
     }
   }, [radiusKm, radiusCenter, loaded]);
 
+  // Fly to new center when it changes (and no route is active to avoid fighting fitBounds)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loaded || !center) return;
+    if (route && route.coordinates.length > 1) return;
+    map.flyTo({ center, zoom: zoom ?? map.getZoom(), duration: 1200, essential: true });
+  }, [center?.[0], center?.[1], loaded]);
+
+  // Auto-fit when multiple markers but no route yet
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loaded || markers.length < 2) return;
+    if (route && route.coordinates.length > 1) return;
+    const bounds = new mapboxgl.LngLatBounds();
+    markers.forEach((m) => bounds.extend([m.lng, m.lat] as [number, number]));
+    map.fitBounds(bounds, { padding: 80, duration: 1000, maxZoom: 14 });
+  }, [markers, loaded]);
+
   // Update markers
   useEffect(() => {
     markersRef.current.forEach((m) => m.remove());
