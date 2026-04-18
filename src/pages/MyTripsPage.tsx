@@ -39,7 +39,7 @@ export function MyTripsPage({ navigate }: MyTripsPageProps) {
     } else {
       const { data } = await supabase
         .from('bookings')
-        .select('*, trips(*, profiles:driver_id(id, full_name, avatar_url))')
+        .select('*, trips(*, driver:profiles!trips_driver_id_fkey(id, full_name, avatar_url))')
         .eq('passenger_id', user.id)
         .order('created_at', { ascending: false });
       setItems((data || []).map((b: any) => ({ kind: 'booking', ...b })));
@@ -72,7 +72,7 @@ export function MyTripsPage({ navigate }: MyTripsPageProps) {
     const isBooking = item.kind === 'booking';
     const trip = isBooking ? item.trips : item;
     if (!trip) return null;
-    const driver = isBooking ? trip.profiles : null;
+    const driver = isBooking ? (trip as any).driver : null;
     const status = statusConfig[item.status] || statusConfig.active;
     const isUpcoming = trip.departure_date >= today && item.status !== 'cancelled' && item.status !== 'rejected';
 
