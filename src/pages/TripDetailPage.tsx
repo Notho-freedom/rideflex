@@ -72,7 +72,7 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
       toast({ title: 'Erreur', description: 'Impossible de réserver.', variant: 'destructive' });
     } else {
       toast({ title: 'Réservation envoyée !' });
-      navigate('booking-confirmation', { tripId });
+      navigate('booking-confirmation', { tripId, seats: bookPrivate ? trip.seats_available : 1 });
     }
   };
 
