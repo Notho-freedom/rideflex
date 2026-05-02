@@ -34,15 +34,6 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
     if (tripId) {
       loadTrip(tripId);
     } else {
-      // Fallback mock data for demo
-      setTrip({
-        from_city: 'Paris', to_city: 'Lyon', departure_time: '14:30',
-        estimated_arrival_time: '18:00', price: 25, seats_total: 4, seats_available: 3,
-        accepts_luggage: true, accepts_animals: false, from_address: 'Gare de Lyon, Hall 1',
-        to_address: 'Gare Part-Dieu', from_lat: 48.8448, from_lng: 2.3730,
-        to_lat: 45.7602, to_lng: 4.8590, stops: [{ place: 'Fontainebleau', lat: 48.4010, lng: 2.7010 }],
-      });
-      setDriver({ full_name: 'Sophie M.', rating_avg: 4.9, total_trips: 42, vehicle_brand: 'Peugeot', vehicle_model: '208', vehicle_color: 'Blanche' });
       setLoading(false);
     }
   }, [tripId]);
