@@ -63,10 +63,7 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
   }, [trip]);
 
   const handleBook = async () => {
-    if (!tripId) {
-      navigate('booking-confirmation');
-      return;
-    }
+    if (!tripId) return;
     setBooking(true);
     const seats = bookPrivate ? trip.seats_available : 1;
     const { error } = await createBooking(tripId, seats, bookPrivate ? 'Réservation privée' : undefined);
