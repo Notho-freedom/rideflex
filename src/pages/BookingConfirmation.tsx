@@ -1,17 +1,37 @@
-import React, { useState } from 'react';
-import { ArrowLeft, CreditCard, Banknote, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, CreditCard, Banknote, CheckCircle2, Loader2 } from 'lucide-react';
 import { RFButton } from '../components/rideflex/RFButton';
 import { RFCard, RFCardContent } from '../components/rideflex/RFCard';
 import { RFSeparator } from '../components/rideflex/RFSeparator';
+import { supabase } from '../integrations/supabase/client';
 
 interface BookingConfirmationProps {
   navigate: (page: string) => void;
   tripId?: string;
+  seats?: number;
 }
 
-export function BookingConfirmation({ navigate, tripId }: BookingConfirmationProps) {
+const PLATFORM_FEE_RATE = 0.15; // 15% commission
+
+export function BookingConfirmation({ navigate, tripId, seats = 1 }: BookingConfirmationProps) {
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [isConfirmed, setIsConfirmed] = useState(false);
+  const [trip, setTrip] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!tripId) { setLoading(false); return; }
+    supabase.from('trips').select('from_city, to_city, price').eq('id', tripId).single()
+      .then(({ data }) => { setTrip(data); setLoading(false); });
+  }, [tripId]);
+
+  const tripPrice = trip ? Number(trip.price) * seats : 0;
+  const serviceFee = Math.round(tripPrice * PLATFORM_FEE_RATE * 100) / 100;
+  const total = Math.round((tripPrice + serviceFee) * 100) / 100;
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  }
 
   if (isConfirmed) {
     return (
@@ -28,6 +48,8 @@ export function BookingConfirmation({ navigate, tripId }: BookingConfirmationPro
     );
   }
 
+  const label = trip ? `${trip.from_city} → ${trip.to_city}` : 'Trajet';
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="bg-card px-4 pt-12 lg:pt-6 pb-4 shadow-sm">
@@ -42,15 +64,17 @@ export function BookingConfirmation({ navigate, tripId }: BookingConfirmationPro
           <RFCardContent className="p-5">
             <h2 className="text-lg font-bold text-foreground mb-4">Résumé</h2>
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-muted-foreground">Trajet (1 place)</span><span className="font-medium">21,00 €</span>
+              <span className="text-muted-foreground">{label} ({seats} place{seats > 1 ? 's' : ''})</span>
+              <span className="font-medium">{tripPrice.toFixed(2)} €</span>
             </div>
             <div className="flex justify-between text-sm mb-4">
-              <span className="text-muted-foreground">Frais de service</span><span className="font-medium">4,00 €</span>
+              <span className="text-muted-foreground">Frais de service</span>
+              <span className="font-medium">{serviceFee.toFixed(2)} €</span>
             </div>
             <RFSeparator className="my-3" />
             <div className="flex justify-between items-center">
               <span className="font-bold text-foreground">Total</span>
-              <span className="text-xl font-bold text-primary">25,00 €</span>
+              <span className="text-xl font-bold text-primary">{total.toFixed(2)} €</span>
             </div>
           </RFCardContent>
         </RFCard>
@@ -90,7 +114,9 @@ export function BookingConfirmation({ navigate, tripId }: BookingConfirmationPro
 
       <div className="mt-auto p-4 pb-safe bg-card border-t border-border lg:border-0 lg:bg-transparent">
         <div className="max-w-2xl lg:max-w-3xl mx-auto">
-          <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={() => setIsConfirmed(true)}>Payer 25,00 €</RFButton>
+          <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={() => setIsConfirmed(true)}>
+            Payer {total.toFixed(2)} €
+          </RFButton>
         </div>
       </div>
     </div>
