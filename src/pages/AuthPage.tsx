@@ -73,6 +73,21 @@ export function AuthPage({ navigate }: AuthPageProps) {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    const result = await lovable.auth.signInWithOAuth('google', {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) {
+      setLoading(false);
+      toast({ title: 'Erreur Google', description: String(result.error), variant: 'destructive' });
+      return;
+    }
+    if (result.redirected) return;
+    setLoading(false);
+    navigate('home');
+  };
+
   return (
     <div className="min-h-screen bg-card flex flex-col lg:flex-row">
       {/* Desktop: left branding panel */}
