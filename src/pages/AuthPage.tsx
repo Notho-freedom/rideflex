@@ -3,8 +3,10 @@ import { ArrowLeft, Mail, Lock, User, Star, Loader2 } from 'lucide-react';
 import { RFButton } from '../components/rideflex/RFButton';
 import { RFInput } from '../components/rideflex/RFInput';
 import { RFTabs, RFTabsList, RFTabsTrigger, RFTabsContent } from '../components/rideflex/RFTabs';
+import { RFSeparator } from '../components/rideflex/RFSeparator';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../hooks/use-toast';
+import { lovable } from '../integrations/lovable/index';
 import logoImg from '../assets/logo.png';
 
 interface AuthPageProps {
