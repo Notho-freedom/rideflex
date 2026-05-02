@@ -80,7 +80,15 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
 
-  if (!trip) return null;
+  if (!trip) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6 text-center">
+        <h2 className="text-xl font-bold text-foreground mb-2">Trajet introuvable</h2>
+        <p className="text-muted-foreground mb-6">Ce trajet n'existe plus ou l'identifiant est invalide.</p>
+        <RFButton variant="brand" onClick={() => navigate('search')}>Retour à la recherche</RFButton>
+      </div>
+    );
+  }
 
   const mapMarkers = [
     { lng: trip.from_lng || 2.3730, lat: trip.from_lat || 48.8448, color: 'hsl(214, 100%, 50%)' },
