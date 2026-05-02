@@ -34,15 +34,6 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
     if (tripId) {
       loadTrip(tripId);
     } else {
-      // Fallback mock data for demo
-      setTrip({
-        from_city: 'Paris', to_city: 'Lyon', departure_time: '14:30',
-        estimated_arrival_time: '18:00', price: 25, seats_total: 4, seats_available: 3,
-        accepts_luggage: true, accepts_animals: false, from_address: 'Gare de Lyon, Hall 1',
-        to_address: 'Gare Part-Dieu', from_lat: 48.8448, from_lng: 2.3730,
-        to_lat: 45.7602, to_lng: 4.8590, stops: [{ place: 'Fontainebleau', lat: 48.4010, lng: 2.7010 }],
-      });
-      setDriver({ full_name: 'Sophie M.', rating_avg: 4.9, total_trips: 42, vehicle_brand: 'Peugeot', vehicle_model: '208', vehicle_color: 'Blanche' });
       setLoading(false);
     }
   }, [tripId]);
@@ -72,10 +63,7 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
   }, [trip]);
 
   const handleBook = async () => {
-    if (!tripId) {
-      navigate('booking-confirmation');
-      return;
-    }
+    if (!tripId) return;
     setBooking(true);
     const seats = bookPrivate ? trip.seats_available : 1;
     const { error } = await createBooking(tripId, seats, bookPrivate ? 'Réservation privée' : undefined);
@@ -84,7 +72,7 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
       toast({ title: 'Erreur', description: 'Impossible de réserver.', variant: 'destructive' });
     } else {
       toast({ title: 'Réservation envoyée !' });
-      navigate('booking-confirmation', { tripId });
+      navigate('booking-confirmation', { tripId, seats: bookPrivate ? trip.seats_available : 1 });
     }
   };
 
@@ -92,7 +80,15 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
 
-  if (!trip) return null;
+  if (!trip) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6 text-center">
+        <h2 className="text-xl font-bold text-foreground mb-2">Trajet introuvable</h2>
+        <p className="text-muted-foreground mb-6">Ce trajet n'existe plus ou l'identifiant est invalide.</p>
+        <RFButton variant="brand" onClick={() => navigate('search')}>Retour à la recherche</RFButton>
+      </div>
+    );
+  }
 
   const mapMarkers = [
     { lng: trip.from_lng || 2.3730, lat: trip.from_lat || 48.8448, color: 'hsl(214, 100%, 50%)' },

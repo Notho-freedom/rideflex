@@ -69,7 +69,7 @@ const Index = () => {
       case 'onboarding': return <OnboardingPage navigate={navigate} />;
       case 'driver-dashboard': return <DriverDashboard navigate={navigate} />;
       case 'trip-detail': return <TripDetailPage navigate={navigate} tripId={pageData?.tripId} />;
-      case 'booking-confirmation': return <BookingConfirmation navigate={navigate} tripId={pageData?.tripId} />;
+      case 'booking-confirmation': return <BookingConfirmation navigate={navigate} tripId={pageData?.tripId} seats={pageData?.seats} />;
       case 'chat': return <ChatPage navigate={navigate} otherUserId={pageData?.userId} otherUserName={pageData?.userName} />;
       case 'notifications': return <NotificationsPage navigate={navigate} />;
       case 'my-trips': return <MyTripsPage navigate={navigate} />;
