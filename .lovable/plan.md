@@ -1,61 +1,48 @@
 
-# Plan -- Finitions : derniers éléments non connectés au backend
+# Plan -- Intégration Stripe et finitions
 
-Apres audit complet du code, la majorite des pages sont deja connectees au backend. Il reste quelques points a corriger :
-
----
-
-## 1. BookingConfirmation -- prix dynamiques depuis le vrai trajet
-
-**Probleme :** Les prix sont hardcodes (21,00 EUR, 25,00 EUR). Le bouton "Payer" ne fait que `setIsConfirmed(true)` sans aucune interaction backend.
-
-**Solution :**
-- Charger le trajet reel via `tripId` (query Supabase).
-- Calculer le prix dynamiquement : prix du trajet + frais de service (ex. 15% commission plateforme).
-- Au clic sur "Payer", creer la reservation via `useBookings.createBooking()` puis afficher la confirmation.
-- Passer `seats` et `tripId` depuis `TripDetailPage` via `pageData`.
+Apres audit complet, toutes les pages sont connectées au backend, les triggers fonctionnent, Google OAuth est actif. Le dernier manque critique : le bouton "Payer" dans BookingConfirmation ne fait rien de réel (juste `setIsConfirmed(true)`).
 
 ---
 
-## 2. TripDetailPage -- supprimer le fallback mock
+## 1. Activer Stripe via Lovable Payments
 
-**Probleme :** Quand `tripId` est absent, un mock Paris-Lyon avec "Sophie M." s'affiche (lignes 37-46).
+- Utiliser l'intégration Stripe native de Lovable pour accepter les paiements.
+- Creer une Edge Function `create-checkout` qui :
+  - Recoit `booking_id`
+  - Charge le booking + trip pour calculer le montant
+  - Cree une Stripe Checkout Session avec le montant total (prix + 15% commission)
+  - Retourne l'URL de redirection Stripe
 
-**Solution :**
-- Si pas de `tripId`, afficher un message "Trajet introuvable" avec bouton retour, au lieu de fausses donnees.
+## 2. Edge Function `stripe-webhook`
 
----
+- Ecoute l'event `checkout.session.completed`
+- Met a jour le booking avec `status = 'paid'`, `total_price`, `platform_fee`, `driver_payout`
+- Envoie une notification au chauffeur
 
-## 3. Google OAuth sur AuthPage
+## 3. BookingConfirmation -- vrai paiement
 
-**Probleme :** Pas de connexion Google. Seul email/password est disponible.
+- Au clic sur "Payer", appeler `create-checkout` et rediriger vers Stripe
+- Ajouter une page de retour (`/success`) qui affiche la confirmation
+- Gerer le cas "espèces" : marquer le booking comme `accepted` sans paiement en ligne
 
-**Solution :**
-- Ajouter `signInWithGoogle()` dans `AuthContext` via `supabase.auth.signInWithOAuth({ provider: 'google' })`.
-- Ajouter un bouton "Continuer avec Google" sur la page de connexion et d'inscription.
-- Configurer le provider Google via `cloud--configure_auth`.
+## 4. Derniere finition : BookingConfirmation sans tripId
 
----
-
-## 4. Notifications insert policy
-
-**Probleme potentiel :** Les triggers serveur creent des notifications (via `create_notification` SECURITY DEFINER), mais il manque peut-etre une policy INSERT sur `notifications` pour les cas ou le client devrait aussi pouvoir en creer.
-
-**Solution :** Verifier et ajouter si necessaire une policy permettant l'insertion de notifications par le systeme (les triggers fonctionnent deja en SECURITY DEFINER, donc probablement OK).
+- Si `tripId` est absent, afficher "Réservation introuvable" au lieu d'un résumé vide (prix 0.00 EUR)
 
 ---
 
 ## Fichiers modifies
 
-- `src/pages/BookingConfirmation.tsx` -- prix dynamiques + creation booking reelle
-- `src/pages/TripDetailPage.tsx` -- supprimer fallback mock, passer seats au navigate
-- `src/pages/Index.tsx` -- passer seats dans pageData pour booking-confirmation
-- `src/contexts/AuthContext.tsx` -- ajouter `signInWithGoogle`
-- `src/pages/AuthPage.tsx` -- bouton Google OAuth
-- Migration SQL si policy notifications manquante
+- `supabase/functions/create-checkout/index.ts` (nouveau)
+- `supabase/functions/stripe-webhook/index.ts` (nouveau)
+- `src/pages/BookingConfirmation.tsx` -- appel Stripe + fallback espèces
+- `src/pages/Index.tsx` -- route retour Stripe si necessaire
+- Migration SQL si colonnes manquantes sur bookings
 
 ## Ordre
 
-1. BookingConfirmation dynamique + TripDetailPage cleanup
-2. Google OAuth (AuthContext + AuthPage + config)
-3. Verification policies notifications
+1. Activer Stripe (outil payments)
+2. Creer les Edge Functions
+3. Mettre a jour BookingConfirmation
+4. Tester le flux complet
