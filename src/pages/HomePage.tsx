@@ -132,16 +132,19 @@ export function HomePage({ navigate }: HomePageProps) {
               <RFCard key={trip.id} className="cursor-pointer" onClick={() => navigate('trip-detail', { tripId: trip.id })}>
                 <RFCardContent className="p-4">
                   <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center space-x-3">
+                    <button
+                      className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+                      onClick={(e) => { e.stopPropagation(); navigate('user-profile', { userId: trip.driver_id }); }}
+                    >
                       <RFAvatar>
                         <RFAvatarImage src={trip.driver?.avatar_url || `https://i.pravatar.cc/150?u=${trip.id}`} />
                         <RFAvatarFallback>{(trip.driver?.full_name || 'U').charAt(0)}</RFAvatarFallback>
                       </RFAvatar>
-                      <div>
+                      <div className="text-left">
                         <p className="font-semibold text-sm">{trip.driver?.full_name || 'Chauffeur'}</p>
                         <div className="flex items-center text-xs text-muted-foreground"><span className="text-yellow-500 mr-1">★</span> {trip.driver?.rating_avg?.toFixed(1) || '0.0'}</div>
                       </div>
-                    </div>
+                    </button>
                     <span className="font-bold text-primary text-lg">{trip.price}€</span>
                   </div>
                   <div className="flex items-center text-sm text-muted-foreground space-x-2">
