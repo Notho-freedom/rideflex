@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, Component, type ReactNode } from 'react';
 import { ResponsiveLayout } from '../components/rideflex/ResponsiveLayout';
 import { HomePage } from './HomePage';
 import { SearchPage } from './SearchPage';
@@ -22,8 +22,41 @@ import { BookingRequestsPage } from './BookingRequestsPage';
 import { NotificationsSheet } from '../components/rideflex/NotificationsSheet';
 import { PublishRequestPage } from './PublishRequestPage';
 import { TripRequestsPage } from './TripRequestsPage';
+import { UserPublicProfilePage } from './UserPublicProfilePage';
 import { useAuth } from '../contexts/AuthContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { RFButton } from '../components/rideflex/RFButton';
+
+// ErrorBoundary to prevent full white screen crashes
+class ErrorBoundary extends Component<{ children: ReactNode; onReset: () => void }, { hasError: boolean; error: Error | null }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, info: any) {
+    console.error('ErrorBoundary caught:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6 text-center">
+          <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+            <span className="text-3xl">⚠️</span>
+          </div>
+          <h2 className="text-xl font-bold text-foreground mb-2">Oups, une erreur est survenue</h2>
+          <p className="text-muted-foreground mb-6 max-w-sm">Nous sommes désolés. Cliquez ci-dessous pour revenir à l'accueil.</p>
+          <RFButton variant="brand" onClick={() => { this.setState({ hasError: false, error: null }); this.props.onReset(); }}>
+            Retour à l'accueil
+          </RFButton>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const Index = () => {
   const [currentPage, setCurrentPage] = useState('home');
@@ -43,10 +76,14 @@ const Index = () => {
     setCurrentPage(page);
   };
 
-  // Auth guard — redirect to auth if not logged in (except auth/onboarding pages)
+  // Scroll to top on page change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [currentPage]);
+
+  // Auth guard
   const publicPages = ['auth', 'onboarding'];
   if (!loading && !user && !publicPages.includes(currentPage)) {
-    // Show auth page for unauthenticated users
     return <AuthPage navigate={navigate} />;
   }
 
@@ -81,6 +118,7 @@ const Index = () => {
       case 'booking-requests': return <BookingRequestsPage navigate={navigate} />;
       case 'publish-request': return <PublishRequestPage navigate={navigate} />;
       case 'trip-requests': return <TripRequestsPage navigate={navigate} />;
+      case 'user-profile': return <UserPublicProfilePage navigate={navigate} userId={pageData?.userId} />;
       default: return <HomePage navigate={navigate} />;
     }
   };
@@ -89,7 +127,7 @@ const Index = () => {
   const showNav = !noNavPages.includes(currentPage);
 
   return (
-    <>
+    <ErrorBoundary onReset={() => { setCurrentPage('home'); setPageData(null); }}>
       <ResponsiveLayout currentPage={currentPage} navigate={navigate} showNav={showNav}>
         {renderPage()}
       </ResponsiveLayout>
@@ -98,7 +136,7 @@ const Index = () => {
         onOpenChange={setNotificationsOpen}
         navigate={(page) => { setNotificationsOpen(false); setCurrentPage(page); }}
       />
-    </>
+    </ErrorBoundary>
   );
 };
 
