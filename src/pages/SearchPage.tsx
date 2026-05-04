@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Filter, MapPin, Radio, Briefcase, PawPrint, HandHelping, Map, List, Locate, Loader2 } from 'lucide-react';
+import { ArrowLeft, Filter, MapPin, Radio, Briefcase, PawPrint, HandHelping, Map, List, Locate, Loader2, Star, MessageCircle } from 'lucide-react';
 import { RFCard, RFCardContent } from '../components/rideflex/RFCard';
 import { RFInput } from '../components/rideflex/RFInput';
 import { RFAvatar, RFAvatarImage, RFAvatarFallback } from '../components/rideflex/RFAvatar';
@@ -19,6 +19,16 @@ type ViewMode = 'list' | 'map';
 const modeLabels: Record<SearchMode, string> = { departure: 'Par départ', arrival: 'Par arrivée', trip: 'Par trajet' };
 const radiusOptions = [5, 10, 15, 25, 50];
 
+function formatDateHuman(dateStr: string | null): string {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  } catch {
+    return dateStr;
+  }
+}
+
 export function SearchPage({ navigate }: SearchPageProps) {
   const [mode, setMode] = useState<SearchMode>('trip');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -29,7 +39,9 @@ export function SearchPage({ navigate }: SearchPageProps) {
   const [fromSearch, setFromSearch] = useState('');
   const [toSearch, setToSearch] = useState('');
   const [trips, setTrips] = useState<any[]>([]);
+  const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingDrivers, setLoadingDrivers] = useState(false);
   const { isDriver } = useUserMode();
 
   useEffect(() => {
@@ -49,10 +61,28 @@ export function SearchPage({ navigate }: SearchPageProps) {
     setLoading(false);
   };
 
+  const fetchAvailableDrivers = async () => {
+    setLoadingDrivers(true);
+    const { data } = await supabase
+      .from('driver_availability')
+      .select('*, profile:profiles!driver_availability_user_id_fkey(full_name, avatar_url, rating_avg, vehicle_brand, vehicle_model, vehicle_color, total_trips)')
+      .eq('is_available', true);
+    setAvailableDrivers(data || []);
+    setLoadingDrivers(false);
+  };
+
   useEffect(() => {
     const timer = setTimeout(fetchTrips, 500);
     return () => clearTimeout(timer);
   }, [fromSearch, toSearch, filterLuggage, filterAnimals]);
+
+  useEffect(() => {
+    if (showAvailableOnly) {
+      fetchAvailableDrivers();
+    } else {
+      setAvailableDrivers([]);
+    }
+  }, [showAvailableOnly]);
 
   const mapTrips = trips.map(t => ({
     id: t.id,
@@ -126,6 +156,59 @@ export function SearchPage({ navigate }: SearchPageProps) {
       </div>
 
       <div className="flex-1">
+        {/* Available drivers section */}
+        {showAvailableOnly && (
+          <div className="p-4 border-b border-border">
+            <div className="max-w-2xl lg:max-w-5xl mx-auto">
+              <h3 className="text-sm font-bold text-secondary uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Radio className="w-4 h-4" />Chauffeurs disponibles maintenant
+              </h3>
+              {loadingDrivers ? (
+                <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-secondary" /></div>
+              ) : availableDrivers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Aucun chauffeur disponible pour le moment.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {availableDrivers.map((da) => (
+                    <RFCard key={da.user_id} className="cursor-pointer hover:shadow-md hover:border-secondary/30 transition-all" onClick={() => navigate('user-profile', { userId: da.user_id })}>
+                      <RFCardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <RFAvatar className="w-12 h-12">
+                              <RFAvatarImage src={da.profile?.avatar_url || `https://i.pravatar.cc/150?u=${da.user_id}`} />
+                              <RFAvatarFallback>{(da.profile?.full_name || 'U').charAt(0)}</RFAvatarFallback>
+                            </RFAvatar>
+                            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-card" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm text-foreground truncate">{da.profile?.full_name || 'Chauffeur'}</p>
+                            <div className="flex items-center text-xs text-muted-foreground gap-1">
+                              <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                              <span>{Number(da.profile?.rating_avg || 0).toFixed(1)}</span>
+                              <span>• {da.profile?.total_trips || 0} trajets</span>
+                            </div>
+                            {da.profile?.vehicle_brand && (
+                              <p className="text-xs text-muted-foreground mt-0.5 truncate">{da.profile.vehicle_brand} {da.profile.vehicle_model}</p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <RFBadge variant="outline" className="text-secondary text-xs"><Locate className="w-3 h-3 mr-1" />{da.radius_km}km</RFBadge>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                          <RFButton variant="outline" size="sm" className="flex-1 text-xs" onClick={(e) => { e.stopPropagation(); navigate('chat', { userId: da.user_id, userName: da.profile?.full_name }); }}>
+                            <MessageCircle className="w-3.5 h-3.5 mr-1" />Contacter
+                          </RFButton>
+                        </div>
+                      </RFCardContent>
+                    </RFCard>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
         ) : viewMode === 'map' ? (
@@ -142,13 +225,16 @@ export function SearchPage({ navigate }: SearchPageProps) {
                   <RFCard key={trip.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('trip-detail', { tripId: trip.id })}>
                     <RFCardContent className="p-4">
                       <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-center space-x-3">
+                        <button
+                          className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+                          onClick={(e) => { e.stopPropagation(); navigate('user-profile', { userId: trip.driver_id }); }}
+                        >
                           <RFAvatar><RFAvatarImage src={trip.driver?.avatar_url || `https://i.pravatar.cc/150?u=${trip.id}`} /><RFAvatarFallback>{(trip.driver?.full_name || 'U').charAt(0)}</RFAvatarFallback></RFAvatar>
-                          <div>
+                          <div className="text-left">
                             <p className="font-semibold text-sm">{trip.driver?.full_name || 'Chauffeur'}</p>
                             <div className="flex items-center text-xs text-muted-foreground"><span className="text-yellow-500 mr-1">★</span> {trip.driver?.rating_avg?.toFixed(1) || '0.0'}</div>
                           </div>
-                        </div>
+                        </button>
                         <div className="text-right">
                           <span className="font-bold text-lg text-primary">{trip.price}€</span>
                           <p className="text-xs text-muted-foreground">{trip.seats_available} places</p>
@@ -166,9 +252,12 @@ export function SearchPage({ navigate }: SearchPageProps) {
                           <p className="text-xs text-muted-foreground">{trip.to_city}</p>
                         </div>
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {trip.accepts_luggage && <RFBadge variant="outline" className="text-muted-foreground"><Briefcase className="w-3 h-3 mr-1" />Bagages</RFBadge>}
-                        {trip.accepts_animals && <RFBadge variant="outline" className="text-muted-foreground"><PawPrint className="w-3 h-3 mr-1" />Animaux</RFBadge>}
+                      <div className="mt-3 flex items-center justify-between">
+                        <div className="flex flex-wrap gap-2">
+                          {trip.accepts_luggage && <RFBadge variant="outline" className="text-muted-foreground"><Briefcase className="w-3 h-3 mr-1" />Bagages</RFBadge>}
+                          {trip.accepts_animals && <RFBadge variant="outline" className="text-muted-foreground"><PawPrint className="w-3 h-3 mr-1" />Animaux</RFBadge>}
+                        </div>
+                        <span className="text-xs text-muted-foreground">{formatDateHuman(trip.departure_date)}</span>
                       </div>
                     </RFCardContent>
                   </RFCard>

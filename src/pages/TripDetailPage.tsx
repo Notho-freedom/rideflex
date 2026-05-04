@@ -18,6 +18,20 @@ interface TripDetailPageProps {
   tripId?: string;
 }
 
+function hasCoords(trip: any): boolean {
+  return trip?.from_lat != null && trip?.from_lng != null && trip?.to_lat != null && trip?.to_lng != null;
+}
+
+function formatDateHuman(dateStr: string | null): string {
+  if (!dateStr) return "Aujourd'hui";
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long' });
+  } catch {
+    return dateStr;
+  }
+}
+
 export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
   const [showSuggestStop, setShowSuggestStop] = useState(false);
   const [bookPrivate, setBookPrivate] = useState(false);
@@ -40,39 +54,40 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
 
   const loadTrip = async (id: string) => {
     setLoading(true);
-    const { data: tripData } = await supabase.from('trips').select('*').eq('id', id).single();
-    if (tripData) {
-      setTrip(tripData);
-      const { data: driverData } = await supabase.from('profiles').select('*').eq('id', tripData.driver_id).single();
-      setDriver(driverData);
+    try {
+      const { data: tripData } = await supabase.from('trips').select('*').eq('id', id).single();
+      if (tripData) {
+        setTrip(tripData);
+        const { data: driverData } = await supabase.from('profiles').select('*').eq('id', tripData.driver_id).single();
+        setDriver(driverData);
 
-      if (tripData.from_lat && tripData.to_lat) {
-        const stops = (tripData.stops as any[])?.map((s: any) => [s.lng, s.lat] as [number, number]) || [];
-        const route = await getRoute([tripData.from_lng, tripData.from_lat], [tripData.to_lng, tripData.to_lat], stops);
-        setRouteData(route);
+        if (hasCoords(tripData)) {
+          try {
+            const stops = (tripData.stops as any[])?.map((s: any) => [s.lng, s.lat] as [number, number]).filter(c => c[0] != null && c[1] != null) || [];
+            const route = await getRoute([tripData.from_lng, tripData.from_lat], [tripData.to_lng, tripData.to_lat], stops);
+            setRouteData(route);
+          } catch (e) {
+            console.warn('Route loading failed:', e);
+          }
+        }
       }
+    } catch (e) {
+      console.error('Trip loading failed:', e);
     }
     setLoading(false);
   };
 
-  useEffect(() => {
-    if (!tripId && trip?.from_lat) {
-      const stops = (trip.stops as any[])?.map((s: any) => [s.lng, s.lat] as [number, number]) || [];
-      getRoute([trip.from_lng, trip.from_lat], [trip.to_lng, trip.to_lat], stops).then(r => setRouteData(r));
-    }
-  }, [trip]);
-
   const handleBook = async () => {
-    if (!tripId) return;
+    if (!tripId || !trip) return;
     setBooking(true);
-    const seats = bookPrivate ? trip.seats_available : 1;
+    const seats = bookPrivate ? (trip.seats_available || 1) : 1;
     const { error } = await createBooking(tripId, seats, bookPrivate ? 'Réservation privée' : undefined);
     setBooking(false);
     if (error) {
       toast({ title: 'Erreur', description: 'Impossible de réserver.', variant: 'destructive' });
     } else {
       toast({ title: 'Réservation envoyée !' });
-      navigate('booking-confirmation', { tripId, seats: bookPrivate ? trip.seats_available : 1 });
+      navigate('booking-confirmation', { tripId, seats });
     }
   };
 
@@ -90,11 +105,18 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
     );
   }
 
-  const mapMarkers = [
-    { lng: trip.from_lng || 2.3730, lat: trip.from_lat || 48.8448, color: 'hsl(214, 100%, 50%)' },
-    ...((trip.stops as any[]) || []).map((s: any) => ({ lng: s.lng, lat: s.lat, color: 'hsl(214, 70%, 70%)' })),
-    { lng: trip.to_lng || 4.8590, lat: trip.to_lat || 45.7602, color: 'hsl(168, 100%, 39%)' },
-  ];
+  const price = Number(trip.price) || 0;
+  const seatsTotal = Number(trip.seats_total) || 4;
+  const seatsAvailable = Number(trip.seats_available) || 0;
+  const showMap = hasCoords(trip);
+
+  const mapMarkers = showMap ? [
+    { lng: trip.from_lng, lat: trip.from_lat, color: 'hsl(214, 100%, 50%)' },
+    ...((trip.stops as any[]) || []).filter((s: any) => s.lng != null && s.lat != null).map((s: any) => ({ lng: s.lng, lat: s.lat, color: 'hsl(214, 70%, 70%)' })),
+    { lng: trip.to_lng, lat: trip.to_lat, color: 'hsl(168, 100%, 39%)' },
+  ] : [];
+
+  const isOwnTrip = user?.id === trip.driver_id;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -111,7 +133,7 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
           <div className="lg:col-span-3">
             <div className="bg-card p-6 mb-2 lg:rounded-xl lg:shadow-sm lg:mb-4">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-foreground">{trip.departure_date || "Aujourd'hui"}</h2>
+                <h2 className="text-xl font-bold text-foreground">{formatDateHuman(trip.departure_date)}</h2>
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                   <Clock className="w-4 h-4" />
                   <span>Arrivée estimée : <strong className="text-foreground">{trip.estimated_arrival_time || '—'}</strong></span>
@@ -161,12 +183,15 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
           <div className="lg:col-span-2 space-y-4">
             <div className="bg-card p-4 mb-2 lg:rounded-xl lg:shadow-sm lg:mb-0">
               <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center space-x-4">
+                <button
+                  className="flex items-center space-x-4 hover:opacity-80 transition-opacity"
+                  onClick={() => navigate('user-profile', { userId: trip.driver_id })}
+                >
                   <RFAvatar className="w-14 h-14">
                     <RFAvatarImage src={driver?.avatar_url || `https://i.pravatar.cc/150?u=${trip.driver_id}`} />
                     <RFAvatarFallback>{driver?.full_name?.charAt(0) || 'U'}</RFAvatarFallback>
                   </RFAvatar>
-                  <div>
+                  <div className="text-left">
                     <h3 className="text-lg font-bold text-foreground">{driver?.full_name || 'Chauffeur'}</h3>
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Star className="w-4 h-4 text-yellow-500 mr-1 fill-current" />
@@ -174,14 +199,18 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
                       <span>({driver?.total_trips || 0} trajets)</span>
                     </div>
                   </div>
-                </div>
+                </button>
                 <div className="flex gap-2">
-                  <button className="p-3 bg-primary/10 text-primary rounded-full" onClick={() => navigate('chat', { userId: trip.driver_id, userName: driver?.full_name })}>
-                    <MessageCircle className="w-5 h-5" />
-                  </button>
-                  <button className="p-3 bg-secondary/10 text-secondary rounded-full">
-                    <Phone className="w-5 h-5" />
-                  </button>
+                  {!isOwnTrip && (
+                    <button className="p-3 bg-primary/10 text-primary rounded-full" onClick={() => navigate('chat', { userId: trip.driver_id, userName: driver?.full_name })}>
+                      <MessageCircle className="w-5 h-5" />
+                    </button>
+                  )}
+                  {driver?.phone && (
+                    <a href={`tel:${driver.phone}`} className="p-3 bg-secondary/10 text-secondary rounded-full">
+                      <Phone className="w-5 h-5" />
+                    </a>
+                  )}
                 </div>
               </div>
               <RFSeparator className="my-4" />
@@ -208,9 +237,9 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
             <div className="bg-card p-4 lg:rounded-xl lg:shadow-sm space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground font-medium">Prix pour 1 place</span>
-                <span className="text-2xl font-bold text-primary">{trip.price},00 €</span>
+                <span className="text-2xl font-bold text-primary">{price.toFixed(2)} €</span>
               </div>
-              <p className="text-xs text-muted-foreground">{trip.seats_available} place{trip.seats_available > 1 ? 's' : ''} disponible{trip.seats_available > 1 ? 's' : ''}</p>
+              <p className="text-xs text-muted-foreground">{seatsAvailable} place{seatsAvailable > 1 ? 's' : ''} disponible{seatsAvailable > 1 ? 's' : ''}</p>
               <RFSeparator />
               <button
                 onClick={() => setBookPrivate(!bookPrivate)}
@@ -223,40 +252,46 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
                     <p className="text-xs text-muted-foreground">Toute la voiture pour vous</p>
                   </div>
                 </div>
-                <span className="font-bold text-foreground">{trip.price * trip.seats_total},00 €</span>
+                <span className="font-bold text-foreground">{(price * seatsTotal).toFixed(2)} €</span>
               </button>
             </div>
 
-            <div className="hidden lg:block">
-              <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={handleBook} disabled={booking}>
-                {booking ? <Loader2 className="w-5 h-5 animate-spin" /> : bookPrivate ? `Réserver en privé — ${trip.price * trip.seats_total}€` : 'Continuer'}
-              </RFButton>
-            </div>
+            {!isOwnTrip && (
+              <div className="hidden lg:block">
+                <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={handleBook} disabled={booking || seatsAvailable === 0}>
+                  {booking ? <Loader2 className="w-5 h-5 animate-spin" /> : seatsAvailable === 0 ? 'Complet' : bookPrivate ? `Réserver en privé — ${(price * seatsTotal).toFixed(2)}€` : 'Continuer'}
+                </RFButton>
+              </div>
+            )}
           </div>
 
-          <div className="lg:col-span-5 mt-2 lg:mt-0">
-            <div className="bg-card lg:rounded-xl lg:shadow-sm overflow-hidden">
-              <div className="h-64 lg:h-80">
-                <MapboxMap
-                  center={[trip.from_lng || 2.3730, trip.from_lat || 48.8448]}
-                  zoom={6}
-                  pitch={30}
-                  bearing={0}
-                  route={routeData?.geometry || null}
-                  markers={mapMarkers}
-                  show3DBuildings={false}
-                />
+          {showMap && (
+            <div className="lg:col-span-5 mt-2 lg:mt-0">
+              <div className="bg-card lg:rounded-xl lg:shadow-sm overflow-hidden">
+                <div className="h-64 lg:h-80">
+                  <MapboxMap
+                    center={[trip.from_lng, trip.from_lat]}
+                    zoom={6}
+                    pitch={30}
+                    bearing={0}
+                    route={routeData?.geometry || null}
+                    markers={mapMarkers}
+                    show3DBuildings={false}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 pb-safe z-50 lg:hidden">
-        <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={handleBook} disabled={booking}>
-          {booking ? <Loader2 className="w-5 h-5 animate-spin" /> : bookPrivate ? `Réserver en privé — ${trip.price * trip.seats_total}€` : 'Continuer'}
-        </RFButton>
-      </div>
+      {!isOwnTrip && (
+        <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 pb-safe z-50 lg:hidden">
+          <RFButton variant="brand" size="xl" className="w-full shadow-lg" onClick={handleBook} disabled={booking || seatsAvailable === 0}>
+            {booking ? <Loader2 className="w-5 h-5 animate-spin" /> : seatsAvailable === 0 ? 'Complet' : bookPrivate ? `Réserver en privé — ${(price * seatsTotal).toFixed(2)}€` : 'Continuer'}
+          </RFButton>
+        </div>
+      )}
     </div>
   );
 }
