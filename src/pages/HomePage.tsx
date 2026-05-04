@@ -152,7 +152,7 @@ export function HomePage({ navigate }: HomePageProps) {
                     <span>→</span>
                     <span className="font-medium text-foreground">{trip.to_city}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">{trip.departure_date} à {trip.departure_time}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{trip.departure_date ? new Date(trip.departure_date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : ''} à {trip.departure_time}</p>
                 </RFCardContent>
               </RFCard>
             ))}
