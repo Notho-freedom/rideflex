@@ -1,48 +1,57 @@
 
-# Plan -- Intégration Stripe et finitions
+# Plan -- Corrections critiques et fonctionnalités manquantes
 
-Apres audit complet, toutes les pages sont connectées au backend, les triggers fonctionnent, Google OAuth est actif. Le dernier manque critique : le bouton "Payer" dans BookingConfirmation ne fait rien de réel (juste `setIsConfirmed(true)`).
+## 1. Corriger le crash (ecran blanc) sur TripDetailPage
 
----
+**Cause probable :** Quand un trajet n'a pas de coordonnees GPS (`from_lat`, `from_lng`, `to_lat`, `to_lng` sont `null`), le code appelle `getRoute([null, null], [null, null])` et passe des markers avec `lng: null, lat: null` a MapboxMap. Mapbox plante silencieusement et React affiche un ecran blanc.
 
-## 1. Activer Stripe via Lovable Payments
+**Correction :**
+- Ajouter des gardes dans `TripDetailPage.tsx` : ne pas appeler `getRoute` ni creer de markers si les coordonnees sont nulles
+- Ajouter un `try/catch` autour de `getRoute` pour ne pas planter si l'API echoue
+- Masquer la carte si aucune coordonnee n'est disponible
+- Ajouter un ErrorBoundary global dans `Index.tsx` pour empecher l'ecran blanc total
+- Proteger `trip.price * trip.seats_total` contre les valeurs null
 
-- Utiliser l'intégration Stripe native de Lovable pour accepter les paiements.
-- Creer une Edge Function `create-checkout` qui :
-  - Recoit `booking_id`
-  - Charge le booking + trip pour calculer le montant
-  - Cree une Stripe Checkout Session avec le montant total (prix + 15% commission)
-  - Retourne l'URL de redirection Stripe
+## 2. Page de profil public (visiter le profil des autres)
 
-## 2. Edge Function `stripe-webhook`
+**Probleme :** Impossible de voir le profil d'un autre utilisateur. Seul le profil personnel existe.
 
-- Ecoute l'event `checkout.session.completed`
-- Met a jour le booking avec `status = 'paid'`, `total_price`, `platform_fee`, `driver_payout`
-- Envoie une notification au chauffeur
+**Solution :**
+- Creer `UserPublicProfilePage.tsx` avec : avatar, nom, note, nombre de trajets, bio, badge "Verifie", bouton "Contacter"
+- Ajouter la route `user-profile` dans `Index.tsx` avec `pageData.userId`
+- Rendre l'avatar/nom cliquable dans `TripDetailPage`, `SearchPage`, `ChatPage` pour naviguer vers ce profil
 
-## 3. BookingConfirmation -- vrai paiement
+## 3. Brancher "Dispo maintenant" dans SearchPage
 
-- Au clic sur "Payer", appeler `create-checkout` et rediriger vers Stripe
-- Ajouter une page de retour (`/success`) qui affiche la confirmation
-- Gerer le cas "espèces" : marquer le booking comme `accepted` sans paiement en ligne
+**Probleme :** Le bouton "Dispo maintenant" toggle un booleen local mais ne filtre rien. Les chauffeurs ayant active le mode dispo n'apparaissent nulle part.
 
-## 4. Derniere finition : BookingConfirmation sans tripId
+**Solution :**
+- Quand `showAvailableOnly` est actif, requeter la table `driver_availability` (where `is_available = true`) et joindre les profils
+- Afficher ces chauffeurs dans une section separee (avatar, nom, note, rayon, vehicule) au-dessus de la liste de trajets
+- Permettre de cliquer sur un chauffeur dispo pour voir son profil public ou le contacter
 
-- Si `tripId` est absent, afficher "Réservation introuvable" au lieu d'un résumé vide (prix 0.00 EUR)
+## 4. Petites finitions UX
+
+- **BookingConfirmation sans tripId** : afficher "Reservation introuvable" au lieu de prix 0.00 EUR
+- **Bouton "Payer" en mode especes** : au lieu de rediriger vers Stripe (pas active), marquer simplement la reservation comme confirmee avec un toast
+- **Date lisible** : formatter `departure_date` en format humain ("Lun 5 mai" au lieu de "2026-05-05")
+- **Scroll to top** : quand on navigue vers une nouvelle page, remonter en haut
 
 ---
 
 ## Fichiers modifies
 
-- `supabase/functions/create-checkout/index.ts` (nouveau)
-- `supabase/functions/stripe-webhook/index.ts` (nouveau)
-- `src/pages/BookingConfirmation.tsx` -- appel Stripe + fallback espèces
-- `src/pages/Index.tsx` -- route retour Stripe si necessaire
-- Migration SQL si colonnes manquantes sur bookings
+- `src/pages/TripDetailPage.tsx` -- protection coordonnees null + ErrorBoundary + lien profil
+- `src/pages/UserPublicProfilePage.tsx` (nouveau) -- profil public
+- `src/pages/Index.tsx` -- nouvelle route + ErrorBoundary + scroll top
+- `src/pages/SearchPage.tsx` -- filtre "Dispo maintenant" branche sur driver_availability
+- `src/pages/BookingConfirmation.tsx` -- fallback sans tripId + mode especes
+- `src/pages/HomePage.tsx` -- lien profil chauffeur cliquable
 
 ## Ordre
 
-1. Activer Stripe (outil payments)
-2. Creer les Edge Functions
-3. Mettre a jour BookingConfirmation
-4. Tester le flux complet
+1. Corriger le crash TripDetailPage (priorite absolue)
+2. Ajouter ErrorBoundary global
+3. Creer UserPublicProfilePage + route
+4. Brancher "Dispo maintenant"
+5. Finitions UX (dates, scroll, especes)
