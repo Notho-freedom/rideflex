@@ -6,8 +6,10 @@ import { RFInput } from '../components/rideflex/RFInput';
 import { RFSeparator } from '../components/rideflex/RFSeparator';
 import { RFSwitch } from '../components/rideflex/RFSwitch';
 import { MapboxMap } from '../components/rideflex/MapboxMap';
+import { ProfileCompletionModal } from '../components/rideflex/ProfileCompletionModal';
 import { geocode, getRoute, addTimeToTime, formatDuration, type RouteResult } from '../lib/mapbox';
 import { useTrips } from '../hooks/useTrips';
+import { useProfile } from '../hooks/useProfile';
 import { useToast } from '../hooks/use-toast';
 
 interface PublishPageProps {
@@ -36,7 +38,9 @@ export function PublishPage({ navigate }: PublishPageProps) {
   const [publishing, setPublishing] = useState(false);
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const { createTrip } = useTrips();
+  const { profile } = useProfile();
   const { toast } = useToast();
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -89,9 +93,17 @@ export function PublishPage({ navigate }: PublishPageProps) {
       toast({ title: 'Champs requis', description: 'Remplissez tous les champs obligatoires.', variant: 'destructive' });
       return;
     }
+    // Check profile completion
+    if (!profile?.full_name || !profile?.phone) {
+      setShowProfileModal(true);
+      return;
+    }
+    doPublish();
+  };
+
+  const doPublish = async () => {
     setPublishing(true);
     const estimatedArrival = routeData && time ? addTimeToTime(time, routeData.duration) : null;
-    const stopsData = stops.filter(s => s.trim()).map(s => ({ place: s }));
 
     const { error } = await createTrip({
       from_city: departure,
