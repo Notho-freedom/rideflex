@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { User, Phone, Car, Camera, X } from 'lucide-react';
 import { RFButton } from './RFButton';
 import { RFInput } from './RFInput';
+import { supabase } from '../../integrations/supabase/client';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ProfileCompletionModalProps {
   open: boolean;
@@ -22,8 +24,29 @@ interface ProfileData {
 export function ProfileCompletionModal({ open, onClose, onComplete, mode = 'passenger' }: ProfileCompletionModalProps) {
   const [step, setStep] = useState(0);
   const [data, setData] = useState<ProfileData>({ fullName: '', phone: '' });
+  const [saving, setSaving] = useState(false);
+  const { user } = useAuth();
 
   if (!open) return null;
+
+  const handleComplete = async () => {
+    if (!user) return;
+    setSaving(true);
+    const patch: Record<string, any> = {
+      full_name: data.fullName,
+      phone: data.phone,
+    };
+    if (mode === 'driver') {
+      patch.vehicle_brand = data.vehicleBrand || '';
+      patch.vehicle_model = data.vehicleModel || '';
+      patch.vehicle_color = data.vehicleColor || '';
+      patch.license_plate = data.licensePlate || '';
+      patch.is_driver = true;
+    }
+    await supabase.from('profiles').update(patch).eq('id', user.id);
+    setSaving(false);
+    onComplete(data);
+  };
 
   const steps = [
     {
@@ -124,19 +147,19 @@ export function ProfileCompletionModal({ open, onClose, onComplete, mode = 'pass
           <RFButton
             variant="brand"
             className="flex-1"
+            disabled={saving || !data.fullName.trim()}
             onClick={() => {
               if (isLast) {
-                onComplete(data);
+                handleComplete();
               } else {
                 setStep(step + 1);
               }
             }}
           >
-            {isLast ? 'Terminer' : 'Suivant'}
+            {saving ? 'Enregistrement...' : isLast ? 'Terminer' : 'Suivant'}
           </RFButton>
         </div>
 
-        {/* Step indicator */}
         {steps.length > 1 && (
           <div className="flex justify-center gap-2 mt-4">
             {steps.map((_, i) => (
