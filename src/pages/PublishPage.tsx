@@ -284,6 +284,12 @@ export function PublishPage({ navigate }: PublishPageProps) {
           </RFButton>
         </div>
       </div>
+      <ProfileCompletionModal
+        open={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        onComplete={() => { setShowProfileModal(false); doPublish(); }}
+        mode="driver"
+      />
     </div>
   );
 }
