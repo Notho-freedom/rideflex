@@ -1,57 +1,100 @@
 
-# Plan -- Corrections critiques et fonctionnalités manquantes
+# Plan -- Continuation RideFlex
 
-## 1. Corriger le crash (ecran blanc) sur TripDetailPage
+## 1. Connexion Google fonctionnelle
 
-**Cause probable :** Quand un trajet n'a pas de coordonnees GPS (`from_lat`, `from_lng`, `to_lat`, `to_lng` sont `null`), le code appelle `getRoute([null, null], [null, null])` et passe des markers avec `lng: null, lat: null` a MapboxMap. Mapbox plante silencieusement et React affiche un ecran blanc.
+L'AuthPage utilise `lovable.auth.signInWithOAuth('google')`. Verifier que le provider Google est bien configure cote backend (via `configure_auth`). Si ce n'est pas le cas, l'activer.
 
-**Correction :**
-- Ajouter des gardes dans `TripDetailPage.tsx` : ne pas appeler `getRoute` ni creer de markers si les coordonnees sont nulles
-- Ajouter un `try/catch` autour de `getRoute` pour ne pas planter si l'API echoue
-- Masquer la carte si aucune coordonnee n'est disponible
-- Ajouter un ErrorBoundary global dans `Index.tsx` pour empecher l'ecran blanc total
-- Proteger `trip.price * trip.seats_total` contre les valeurs null
-
-## 2. Page de profil public (visiter le profil des autres)
-
-**Probleme :** Impossible de voir le profil d'un autre utilisateur. Seul le profil personnel existe.
-
-**Solution :**
-- Creer `UserPublicProfilePage.tsx` avec : avatar, nom, note, nombre de trajets, bio, badge "Verifie", bouton "Contacter"
-- Ajouter la route `user-profile` dans `Index.tsx` avec `pageData.userId`
-- Rendre l'avatar/nom cliquable dans `TripDetailPage`, `SearchPage`, `ChatPage` pour naviguer vers ce profil
-
-## 3. Brancher "Dispo maintenant" dans SearchPage
-
-**Probleme :** Le bouton "Dispo maintenant" toggle un booleen local mais ne filtre rien. Les chauffeurs ayant active le mode dispo n'apparaissent nulle part.
-
-**Solution :**
-- Quand `showAvailableOnly` est actif, requeter la table `driver_availability` (where `is_available = true`) et joindre les profils
-- Afficher ces chauffeurs dans une section separee (avatar, nom, note, rayon, vehicule) au-dessus de la liste de trajets
-- Permettre de cliquer sur un chauffeur dispo pour voir son profil public ou le contacter
-
-## 4. Petites finitions UX
-
-- **BookingConfirmation sans tripId** : afficher "Reservation introuvable" au lieu de prix 0.00 EUR
-- **Bouton "Payer" en mode especes** : au lieu de rediriger vers Stripe (pas active), marquer simplement la reservation comme confirmee avec un toast
-- **Date lisible** : formatter `departure_date` en format humain ("Lun 5 mai" au lieu de "2026-05-05")
-- **Scroll to top** : quand on navigue vers une nouvelle page, remonter en haut
+**Fichier:** aucun changement de code si deja fonctionnel, sinon correction dans `AuthPage.tsx`.
 
 ---
 
-## Fichiers modifies
+## 2. Profil progressif (ProfileCompletionModal)
 
-- `src/pages/TripDetailPage.tsx` -- protection coordonnees null + ErrorBoundary + lien profil
-- `src/pages/UserPublicProfilePage.tsx` (nouveau) -- profil public
-- `src/pages/Index.tsx` -- nouvelle route + ErrorBoundary + scroll top
-- `src/pages/SearchPage.tsx` -- filtre "Dispo maintenant" branche sur driver_availability
-- `src/pages/BookingConfirmation.tsx` -- fallback sans tripId + mode especes
-- `src/pages/HomePage.tsx` -- lien profil chauffeur cliquable
+Le modal existe mais n'est jamais declenche. L'integrer dans les flux critiques :
+- **PublishPage** : avant de publier un trajet, verifier que le profil a un nom et telephone. Si non, ouvrir le modal.
+- **Booking (TripDetailPage)** : avant de reserver, verifier que le passager a un nom. Si non, ouvrir le modal.
+- **ChatPage** : avant d'envoyer le premier message, verifier le nom.
 
-## Ordre
+Le modal doit sauvegarder les donnees dans la table `profiles` via `useProfile.updateProfile`.
 
-1. Corriger le crash TripDetailPage (priorite absolue)
-2. Ajouter ErrorBoundary global
-3. Creer UserPublicProfilePage + route
-4. Brancher "Dispo maintenant"
-5. Finitions UX (dates, scroll, especes)
+**Fichiers:** `PublishPage.tsx`, `TripDetailPage.tsx`, `ChatPage.tsx`
+
+---
+
+## 3. Recherche fonctionnelle dans HomePage
+
+Le formulaire de recherche (depart/arrivee/date) sur la HomePage ne transmet pas les criteres a SearchPage. Faire passer `departure`, `arrival`, `date` via `pageData` et pre-remplir les champs de SearchPage.
+
+**Fichiers:** `HomePage.tsx`, `SearchPage.tsx`, `Index.tsx`
+
+---
+
+## 4. Filtres de recherche avances
+
+SearchPage a des toggles bagages/animaux mais il manque :
+- Filtre par **date** (champ date picker)
+- Filtre par **prix max**
+- Filtre par **nombre de places** disponibles
+- **Tri** (prix croissant, date, note du chauffeur)
+
+**Fichier:** `SearchPage.tsx`
+
+---
+
+## 5. Annulation de trajet par le chauffeur
+
+MyTripsPage en mode chauffeur affiche les trajets mais ne permet pas de les annuler ou modifier. Ajouter :
+- Bouton "Annuler" pour passer le statut a `cancelled`
+- Bouton "Modifier" pour revenir a un formulaire pre-rempli (ou inline)
+
+**Fichier:** `MyTripsPage.tsx`
+
+---
+
+## 6. Notation apres trajet
+
+RatingPage existe mais n'est jamais proposee. Apres qu'un trajet passe en statut `completed`, afficher un prompt/banner dans MyTripsPage pour noter l'autre partie.
+
+**Fichier:** `MyTripsPage.tsx`
+
+---
+
+## 7. Polish UX general
+
+- **Etat vide ameliore** : illustrations SVG pour les listes vides (pas juste du texte)
+- **Confirmation de reservation** : toast + animation de succes au lieu d'une simple redirection
+- **Nombre de passagers** : permettre de choisir le nombre de places lors de la reservation (TripDetailPage a deja un champ mais la valeur n'est pas toujours passee)
+- **Indicateur "en ligne"** : point vert sur l'avatar des chauffeurs dispo dans SearchPage
+- **Swipe-to-action** sur mobile pour les reservations (accept/refuse)
+
+**Fichiers:** Multiples pages
+
+---
+
+## Ordre d'execution
+
+1. Google Auth verification + activation
+2. Recherche HomePage -> SearchPage (passage de criteres)
+3. Filtres avances SearchPage
+4. Profil progressif (modal dans les flux critiques)
+5. Annulation/modification trajets chauffeur
+6. Notation post-trajet
+7. Polish UX (etats vides, confirmations, indicateurs)
+
+---
+
+## Detail technique
+
+### Migration DB
+Aucune migration necessaire -- toutes les tables et colonnes existent deja.
+
+### Fichiers modifies
+- `src/pages/HomePage.tsx` -- passage des criteres de recherche
+- `src/pages/SearchPage.tsx` -- reception criteres, filtres avances, tri, indicateur en ligne
+- `src/pages/Index.tsx` -- passage de pageData pour la recherche
+- `src/pages/PublishPage.tsx` -- declenchement ProfileCompletionModal
+- `src/pages/TripDetailPage.tsx` -- declenchement ProfileCompletionModal avant booking
+- `src/pages/MyTripsPage.tsx` -- annulation trajet, prompt notation
+- `src/pages/ChatPage.tsx` -- declenchement ProfileCompletionModal
+- `src/components/rideflex/ProfileCompletionModal.tsx` -- connexion a useProfile pour sauvegarder
