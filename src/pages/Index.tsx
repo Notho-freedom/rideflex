@@ -98,7 +98,7 @@ const Index = () => {
   const renderPage = () => {
     switch (currentPage) {
       case 'home': return <HomePage navigate={navigate} />;
-      case 'search': return <SearchPage navigate={navigate} />;
+      case 'search': return <SearchPage navigate={navigate} initialFrom={pageData?.from} initialTo={pageData?.to} />;
       case 'publish': return <PublishPage navigate={navigate} />;
       case 'messages': return <MessagesPage navigate={navigate} />;
       case 'profile': return <ProfilePage navigate={navigate} />;

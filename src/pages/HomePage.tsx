@@ -96,7 +96,7 @@ export function HomePage({ navigate }: HomePageProps) {
                 <Calendar className="text-muted-foreground w-5 h-5 mr-3 shrink-0" />
                 <input type="date" className="flex-1 bg-transparent text-sm text-muted-foreground outline-none" />
               </div>
-              <RFButton variant="brand" size="xl" className="w-full" onClick={() => navigate('search')}>
+              <RFButton variant="brand" size="xl" className="w-full" onClick={() => navigate('search', { from: departure, to: arrival })}>
                 <Search className="w-4 h-4 mr-2" />Rechercher
               </RFButton>
             </div>
