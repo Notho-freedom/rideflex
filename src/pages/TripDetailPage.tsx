@@ -305,6 +305,12 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
           </RFButton>
         </div>
       )}
+      <ProfileCompletionModal
+        open={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        onComplete={() => { setShowProfileModal(false); doBook(); }}
+        mode="passenger"
+      />
     </div>
   );
 }
