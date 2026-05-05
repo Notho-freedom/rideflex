@@ -103,7 +103,9 @@ export function MyTripsPage({ navigate }: MyTripsPageProps) {
               )}
               <div>
                 {driver && <p className="text-sm font-medium">{driver.full_name}</p>}
-                <p className="text-xs text-muted-foreground">{trip.departure_date}</p>
+                <p className="text-xs text-muted-foreground">
+                  {trip.departure_date ? new Date(trip.departure_date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : ''}
+                </p>
               </div>
             </div>
             <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
@@ -126,10 +128,19 @@ export function MyTripsPage({ navigate }: MyTripsPageProps) {
     );
   };
 
-  const emptyState = (msg: string) => (
-    <div className="text-center py-12 col-span-full">
-      <Clock className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-      <p className="text-muted-foreground font-medium">{msg}</p>
+  const emptyState = (msg: string, icon: 'upcoming' | 'past') => (
+    <div className="text-center py-16 col-span-full">
+      <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+        {icon === 'upcoming' ? (
+          <MapPin className="w-10 h-10 text-primary/30" />
+        ) : (
+          <Clock className="w-10 h-10 text-muted-foreground/30" />
+        )}
+      </div>
+      <h3 className="text-lg font-semibold text-foreground mb-1">{msg}</h3>
+      <p className="text-sm text-muted-foreground">
+        {icon === 'upcoming' ? 'Publiez ou réservez un trajet pour le voir ici.' : 'Vos trajets terminés apparaîtront ici.'}
+      </p>
     </div>
   );
 
@@ -156,12 +167,12 @@ export function MyTripsPage({ navigate }: MyTripsPageProps) {
           <>
             <RFTabsContent value="upcoming" className="p-4">
               <div className="max-w-2xl lg:max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {upcoming.length === 0 ? emptyState('Aucun trajet à venir') : upcoming.map(renderCard)}
+                {upcoming.length === 0 ? emptyState('Aucun trajet à venir', 'upcoming') : upcoming.map(renderCard)}
               </div>
             </RFTabsContent>
             <RFTabsContent value="past" className="p-4">
               <div className="max-w-2xl lg:max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {past.length === 0 ? emptyState('Aucun trajet passé') : past.map(renderCard)}
+                {past.length === 0 ? emptyState('Aucun trajet passé', 'past') : past.map(renderCard)}
               </div>
             </RFTabsContent>
           </>
