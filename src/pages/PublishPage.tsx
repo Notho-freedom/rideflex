@@ -104,7 +104,7 @@ export function PublishPage({ navigate }: PublishPageProps) {
   const doPublish = async () => {
     setPublishing(true);
     const estimatedArrival = routeData && time ? addTimeToTime(time, routeData.duration) : null;
-
+    const stopsData = stops.filter(s => s.trim()).map(s => ({ place: s }));
     const { error } = await createTrip({
       from_city: departure,
       from_address: null,
