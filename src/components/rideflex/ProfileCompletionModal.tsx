@@ -32,18 +32,22 @@ export function ProfileCompletionModal({ open, onClose, onComplete, mode = 'pass
   const handleComplete = async () => {
     if (!user) return;
     setSaving(true);
-    const patch: Record<string, any> = {
-      full_name: data.fullName,
-      phone: data.phone,
-    };
     if (mode === 'driver') {
-      patch.vehicle_brand = data.vehicleBrand || '';
-      patch.vehicle_model = data.vehicleModel || '';
-      patch.vehicle_color = data.vehicleColor || '';
-      patch.license_plate = data.licensePlate || '';
-      patch.is_driver = true;
+      await supabase.from('profiles').update({
+        full_name: data.fullName,
+        phone: data.phone,
+        vehicle_brand: data.vehicleBrand || '',
+        vehicle_model: data.vehicleModel || '',
+        vehicle_color: data.vehicleColor || '',
+        license_plate: data.licensePlate || '',
+        is_driver: true,
+      }).eq('id', user.id);
+    } else {
+      await supabase.from('profiles').update({
+        full_name: data.fullName,
+        phone: data.phone,
+      }).eq('id', user.id);
     }
-    await supabase.from('profiles').update(patch).eq('id', user.id);
     setSaving(false);
     onComplete(data);
   };
