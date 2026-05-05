@@ -10,8 +10,10 @@ import { MapboxMap } from '../components/rideflex/MapboxMap';
 import { getRoute, type RouteResult } from '../lib/mapbox';
 import { supabase } from '../integrations/supabase/client';
 import { useBookings } from '../hooks/useBookings';
+import { useProfile } from '../hooks/useProfile';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../hooks/use-toast';
+import { ProfileCompletionModal } from '../components/rideflex/ProfileCompletionModal';
 
 interface TripDetailPageProps {
   navigate: (page: string, data?: any) => void;
@@ -40,7 +42,9 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
   const [driver, setDriver] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const { createBooking } = useBookings();
+  const { profile } = useProfile();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -78,6 +82,15 @@ export function TripDetailPage({ navigate, tripId }: TripDetailPageProps) {
   };
 
   const handleBook = async () => {
+    if (!tripId || !trip) return;
+    if (!profile?.full_name) {
+      setShowProfileModal(true);
+      return;
+    }
+    doBook();
+  };
+
+  const doBook = async () => {
     if (!tripId || !trip) return;
     setBooking(true);
     const seats = bookPrivate ? (trip.seats_available || 1) : 1;
